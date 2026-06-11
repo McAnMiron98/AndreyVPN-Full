@@ -1,7 +1,7 @@
 display_name: AndreyVPN
 publisher_display_name: AndreyVPN
 identity_name: AndreyVPN.AndreyVPN
-msix_version: 0.2.0.0
+msix_version: 0.4.0.0
 logo_path: windows\runner\resources\app_icon.ico
 capabilities: internetClient, internetClientServer, privateNetworkClientServer
 languages: ar, en-us, es-es, fa-ir, fr-fr, id-id, pt-br, ru-ru, tr-tr, zh-cn, zh-tw

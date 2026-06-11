@@ -10,6 +10,10 @@ import 'package:hiddify/core/localization/locale_extensions.dart';
 import 'package:hiddify/core/localization/locale_preferences.dart';
 import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/core/model/constants.dart';
+import 'package:hiddify/core/app_info/app_info_provider.dart';
+import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
+import 'package:hiddify/features/app_update/notifier/app_update_notifier.dart';
+import 'package:hiddify/features/app_update/notifier/app_update_state.dart';
 import 'package:hiddify/core/notification/in_app_notification_controller.dart';
 import 'package:hiddify/core/router/go_router/go_router_notifier.dart';
 import 'package:hiddify/core/router/go_router/helper/active_breakpoint_notifier.dart';
@@ -64,6 +68,21 @@ class App extends HookConsumerWidget with WidgetsBindingObserver, PresLogger {
     ref.listen(foregroundProfilesUpdateNotifierProvider, (_, _) {});
     if (PlatformUtils.isAndroid) ref.listen(perAppProxyServiceProvider, (_, _) {});
     if (PlatformUtils.isDesktop) ref.listen(systemTrayNotifierProvider, (_, _) {});
+
+    useEffect(() {
+      Future.microtask(() async {
+        final appInfo = ref.read(appInfoProvider).requireValue;
+        final updateState = await ref.read(appUpdateNotifierProvider.notifier).check();
+        if (updateState is AppUpdateStateAvailable) {
+          await ref.read(dialogNotifierProvider.notifier).showNewVersion(
+            currentVersion: appInfo.version,
+            newVersion: updateState.versionInfo,
+            canIgnore: true,
+          );
+        }
+      });
+      return null;
+    }, const []);
 
     // updating ActiveBreakpointNotifier value
     useEffect(() {

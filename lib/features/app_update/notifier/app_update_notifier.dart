@@ -48,13 +48,7 @@ class AppUpdateNotifier extends _$AppUpdateNotifier with AppLogger {
   );
 
   Future<AppUpdateState> check() async {
-    loggy.debug("update checking is disabled in AndreyVPN");
-    return state = const AppUpdateState.disabled();
-
-    // Disabled in AndreyVPN 0.3: do not contact Hiddify update servers.
-    // Kept below for possible future migration to AndreyVPN GitHub Releases.
-    // ignore: dead_code
-    loggy.debug("checking for update");
+    loggy.debug("checking for AndreyVPN update");
     state = const AppUpdateState.checking();
     final appInfo = ref.watch(appInfoProvider).requireValue;
     if (!appInfo.release.allowCustomUpdateChecker) {
