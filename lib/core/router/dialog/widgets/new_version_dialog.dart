@@ -232,7 +232,7 @@ try {
       await File(launcherLogPath).writeAsString('[$now] $message\r\n', mode: FileMode.append, flush: true);
     }
 
-    String vbsEscape(String value) => value.replaceAll('"', '""');
+    String vbsQuote(String value) => '""${value.replaceAll('"', '""')}""';
 
     await launcherLog('Preparing updater launch');
     await launcherLog('AppDir=$appDir');
@@ -241,10 +241,11 @@ try {
     await launcherLog('ScriptPath=$scriptPath');
 
     final psCommand = 'powershell.exe -NoProfile -STA -ExecutionPolicy Bypass '
-        '-File "${vbsEscape(scriptPath)}" '
-        '-AppDir "${vbsEscape(appDir)}" '
-        '-ExePath "${vbsEscape(exePath)}" '
-        '-ZipUrl "${vbsEscape(newVersion.url)}" '
+        '-WindowStyle Hidden '
+        '-File ${vbsQuote(scriptPath)} '
+        '-AppDir ${vbsQuote(appDir)} '
+        '-ExePath ${vbsQuote(exePath)} '
+        '-ZipUrl ${vbsQuote(newVersion.url)} '
         '-AppPid $currentPid';
 
     final vbsLauncher = '''
