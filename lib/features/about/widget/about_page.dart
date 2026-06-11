@@ -7,6 +7,8 @@ import 'package:hiddify/core/directories/directories_provider.dart';
 import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/core/model/constants.dart';
 import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
+import 'package:hiddify/features/app_update/notifier/app_update_notifier.dart';
+import 'package:hiddify/features/app_update/notifier/app_update_state.dart';
 import 'package:hiddify/core/widget/adaptive_icon.dart';
 import 'package:hiddify/gen/assets.gen.dart';
 import 'package:hiddify/utils/utils.dart';
@@ -88,12 +90,41 @@ class AboutPage extends HookConsumerWidget {
                 title: const Text("Проверить наличие обновлений"),
                 trailing: const Icon(FluentIcons.arrow_clockwise_24_regular),
                 onTap: () async {
-                  ref.read(dialogNotifierProvider.notifier).show(
-                    const AlertDialog(
-                      title: Text('Проверка обновлений'),
-                      content: Text('Подключение кнопки к updater будет выполнено в следующем коммите.'),
-                    ),
+                  final messenger = ScaffoldMessenger.of(context);
+                  messenger.hideCurrentSnackBar();
+                  messenger.showSnackBar(
+                    const SnackBar(content: Text('Проверяем наличие обновлений...')),
                   );
+
+                  final appInfo = ref.read(appInfoProvider).requireValue;
+                  final updateState = await ref.read(appUpdateNotifierProvider.notifier).check();
+
+                  if (!context.mounted) return;
+                  messenger.hideCurrentSnackBar();
+
+                  final dialog = ref.read(dialogNotifierProvider.notifier);
+                  if (updateState is AppUpdateStateAvailable) {
+                    await dialog.showNewVersion(
+                      currentVersion: appInfo.version,
+                      newVersion: updateState.versionInfo,
+                      canIgnore: false,
+                    );
+                  } else if (updateState is AppUpdateStateError) {
+                    await dialog.showOk(
+                      'Ошибка проверки обновлений',
+                      'Не удалось проверить наличие обновлений. Проверь подключение к интернету и попробуй ещё раз.',
+                    );
+                  } else if (updateState is AppUpdateStateDisabled) {
+                    await dialog.showOk(
+                      'Проверка обновлений отключена',
+                      'Проверка обновлений недоступна для этой сборки AndreyVPN.',
+                    );
+                  } else {
+                    await dialog.showOk(
+                      'Обновлений нет',
+                      'У вас установлена последняя версия AndreyVPN.\n\nТекущая версия: ${appInfo.version}',
+                    );
+                  }
                 },
               ),
               ListTile(
