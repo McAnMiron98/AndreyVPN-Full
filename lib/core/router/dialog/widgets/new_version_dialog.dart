@@ -73,12 +73,36 @@ try {
   Expand-Archive -Path $ZipPath -DestinationPath $ExtractDir -Force
 
   $SourceDir = $ExtractDir
-  $NestedDirs = Get-ChildItem -Path $ExtractDir -Directory
-  if ($NestedDirs.Count -eq 1 -and (Test-Path (Join-Path $NestedDirs[0].FullName "AndreyVPN.exe"))) {
-    $SourceDir = $NestedDirs[0].FullName
+
+  # GitHub Actions artifacts can be downloaded as an outer ZIP containing the real portable ZIP.
+  # Support both formats:
+  # 1) ZIP contains AndreyVPN.exe directly
+  # 2) ZIP contains one folder with AndreyVPN.exe
+  # 3) ZIP contains another *windows*portable*.zip inside
+  if (-not (Test-Path (Join-Path $SourceDir "AndreyVPN.exe"))) {
+    $InnerZip = Get-ChildItem -Path $ExtractDir -Recurse -File | Where-Object {
+      $_.Name.ToLower().EndsWith(".zip") -and $_.Name.ToLower().Contains("windows") -and $_.Name.ToLower().Contains("portable")
+    } | Select-Object -First 1
+
+    if ($InnerZip) {
+      Write-UpdateLog "Found nested portable zip: $($InnerZip.FullName)"
+      $NestedExtractDir = Join-Path $WorkDir "nested_extract"
+      New-Item -ItemType Directory -Force -Path $NestedExtractDir | Out-Null
+      Expand-Archive -Path $InnerZip.FullName -DestinationPath $NestedExtractDir -Force
+      $SourceDir = $NestedExtractDir
+    }
   }
 
   if (-not (Test-Path (Join-Path $SourceDir "AndreyVPN.exe"))) {
+    $NestedDirs = Get-ChildItem -Path $SourceDir -Directory
+    if ($NestedDirs.Count -eq 1 -and (Test-Path (Join-Path $NestedDirs[0].FullName "AndreyVPN.exe"))) {
+      $SourceDir = $NestedDirs[0].FullName
+    }
+  }
+
+  if (-not (Test-Path (Join-Path $SourceDir "AndreyVPN.exe"))) {
+    Write-UpdateLog "Extracted files:"
+    Get-ChildItem -Path $ExtractDir -Recurse | ForEach-Object { Write-UpdateLog $_.FullName }
     throw "AndreyVPN.exe was not found inside downloaded update archive."
   }
 
