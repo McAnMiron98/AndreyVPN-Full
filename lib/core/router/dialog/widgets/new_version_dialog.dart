@@ -187,12 +187,13 @@ pause
 
     try {
       final process = await Process.start(
-        'cmd.exe',
-        ['/c', 'start', '"AndreyVPN Updater"', launcherScriptPath],
+        launcherScriptPath,
+        const [],
         mode: ProcessStartMode.detached,
-        runInShell: false,
+        runInShell: true,
+        workingDirectory: tempDir.path,
       );
-      await launcherLog('cmd.exe started with pid=${process.pid}');
+      await launcherLog('updater launcher started with pid=${process.pid}');
       await Future<void>.delayed(const Duration(seconds: 2));
       await launcherLog('Closing AndreyVPN so updater can replace files');
       exit(0);
