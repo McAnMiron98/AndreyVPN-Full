@@ -85,10 +85,15 @@ class AboutPage extends HookConsumerWidget {
                 },
               ),
               ListTile(
-                title: Text(t.pages.about.telegramChannel),
-                trailing: const Icon(FluentIcons.open_24_regular),
+                title: const Text("Проверить наличие обновлений"),
+                trailing: const Icon(FluentIcons.arrow_clockwise_24_regular),
                 onTap: () async {
-                  await UriUtils.tryLaunch(Uri.parse(Constants.telegramChannelUrl));
+                  ref.read(dialogNotifierProvider.notifier).show(
+                    const AlertDialog(
+                      title: Text('Проверка обновлений'),
+                      content: Text('Подключение кнопки к updater будет выполнено в следующем коммите.'),
+                    ),
+                  );
                 },
               ),
               ListTile(
