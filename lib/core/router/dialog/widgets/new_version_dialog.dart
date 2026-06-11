@@ -38,84 +38,96 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
+
+$LogDir = Join-Path $env:LOCALAPPDATA "AndreyVPN"
+if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Force -Path $LogDir | Out-Null }
+$LogPath = Join-Path $LogDir "AndreyVPN-update.log"
 $WorkDir = Join-Path $env:TEMP ("AndreyVPN_Update_" + [guid]::NewGuid().ToString())
 $ZipPath = Join-Path $WorkDir "AndreyVPN-update.zip"
 $ExtractDir = Join-Path $WorkDir "extract"
-$LogPath = Join-Path $env:TEMP "AndreyVPN-update.log"
 
 function Write-UpdateLog($Message) {
   $stamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
   Add-Content -Path $LogPath -Value "[$stamp] $Message"
 }
 
+function Find-PortableSourceDir($RootDir) {
+  $directExe = Join-Path $RootDir "AndreyVPN.exe"
+  if (Test-Path $directExe) { return $RootDir }
+
+  $innerZip = Get-ChildItem -Path $RootDir -Recurse -File -ErrorAction SilentlyContinue | Where-Object {
+    $name = $_.Name.ToLowerInvariant()
+    $name.EndsWith(".zip") -and $name.Contains("windows") -and $name.Contains("portable")
+  } | Select-Object -First 1
+
+  if ($innerZip) {
+    Write-UpdateLog "Found nested portable zip: $($innerZip.FullName)"
+    $nestedExtractDir = Join-Path $WorkDir "nested_extract"
+    New-Item -ItemType Directory -Force -Path $nestedExtractDir | Out-Null
+    Expand-Archive -Path $innerZip.FullName -DestinationPath $nestedExtractDir -Force
+    return Find-PortableSourceDir $nestedExtractDir
+  }
+
+  $exe = Get-ChildItem -Path $RootDir -Recurse -File -Filter "AndreyVPN.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($exe) { return $exe.DirectoryName }
+
+  return $null
+}
+
 try {
+  "" | Set-Content -Path $LogPath
   Write-UpdateLog "Starting AndreyVPN update"
   Write-UpdateLog "AppDir=$AppDir"
   Write-UpdateLog "ExePath=$ExePath"
   Write-UpdateLog "ZipUrl=$ZipUrl"
+  Write-UpdateLog "AppPid=$AppPid"
 
   New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null
   New-Item -ItemType Directory -Force -Path $ExtractDir | Out-Null
 
   Write-UpdateLog "Downloading update zip"
-  Invoke-WebRequest -Uri $ZipUrl -OutFile $ZipPath -UseBasicParsing
+  Invoke-WebRequest -Uri $ZipUrl -OutFile $ZipPath -UseBasicParsing -Headers @{ "User-Agent" = "AndreyVPN-Updater" }
+  Write-UpdateLog "Downloaded: $((Get-Item $ZipPath).Length) bytes"
 
-  Write-UpdateLog "Waiting for AndreyVPN to close"
-  try {
-    Wait-Process -Id $AppPid -Timeout 60 -ErrorAction SilentlyContinue
-  } catch {
-    Write-UpdateLog "Wait-Process finished with warning: $($_.Exception.Message)"
-  }
-
+  Write-UpdateLog "Waiting for AndreyVPN process to close"
+  try { Wait-Process -Id $AppPid -Timeout 90 -ErrorAction SilentlyContinue } catch { Write-UpdateLog "Wait warning: $($_.Exception.Message)" }
   Start-Sleep -Seconds 2
+
+  # Some helper processes can keep files locked. Stop only known AndreyVPN/Hiddify helper processes.
+  Write-UpdateLog "Stopping helper processes if still running"
+  Get-Process -Name "AndreyVPN","HiddifyCli" -ErrorAction SilentlyContinue | ForEach-Object {
+    try {
+      Write-UpdateLog "Stopping process: $($_.ProcessName) PID=$($_.Id)"
+      Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+    } catch { Write-UpdateLog "Stop warning: $($_.Exception.Message)" }
+  }
+  Start-Sleep -Seconds 1
 
   Write-UpdateLog "Extracting update zip"
   Expand-Archive -Path $ZipPath -DestinationPath $ExtractDir -Force
 
-  $SourceDir = $ExtractDir
-
-  # GitHub Actions artifacts can be downloaded as an outer ZIP containing the real portable ZIP.
-  # Support both formats:
-  # 1) ZIP contains AndreyVPN.exe directly
-  # 2) ZIP contains one folder with AndreyVPN.exe
-  # 3) ZIP contains another *windows*portable*.zip inside
-  if (-not (Test-Path (Join-Path $SourceDir "AndreyVPN.exe"))) {
-    $InnerZip = Get-ChildItem -Path $ExtractDir -Recurse -File | Where-Object {
-      $_.Name.ToLower().EndsWith(".zip") -and $_.Name.ToLower().Contains("windows") -and $_.Name.ToLower().Contains("portable")
-    } | Select-Object -First 1
-
-    if ($InnerZip) {
-      Write-UpdateLog "Found nested portable zip: $($InnerZip.FullName)"
-      $NestedExtractDir = Join-Path $WorkDir "nested_extract"
-      New-Item -ItemType Directory -Force -Path $NestedExtractDir | Out-Null
-      Expand-Archive -Path $InnerZip.FullName -DestinationPath $NestedExtractDir -Force
-      $SourceDir = $NestedExtractDir
-    }
-  }
-
-  if (-not (Test-Path (Join-Path $SourceDir "AndreyVPN.exe"))) {
-    $NestedDirs = Get-ChildItem -Path $SourceDir -Directory
-    if ($NestedDirs.Count -eq 1 -and (Test-Path (Join-Path $NestedDirs[0].FullName "AndreyVPN.exe"))) {
-      $SourceDir = $NestedDirs[0].FullName
-    }
-  }
-
-  if (-not (Test-Path (Join-Path $SourceDir "AndreyVPN.exe"))) {
-    Write-UpdateLog "Extracted files:"
-    Get-ChildItem -Path $ExtractDir -Recurse | ForEach-Object { Write-UpdateLog $_.FullName }
+  $SourceDir = Find-PortableSourceDir $ExtractDir
+  if (-not $SourceDir) {
+    Write-UpdateLog "Extracted files dump:"
+    Get-ChildItem -Path $ExtractDir -Recurse -ErrorAction SilentlyContinue | ForEach-Object { Write-UpdateLog $_.FullName }
     throw "AndreyVPN.exe was not found inside downloaded update archive."
   }
 
-  Write-UpdateLog "Copying files from $SourceDir to $AppDir"
+  Write-UpdateLog "Portable source detected: $SourceDir"
+  Write-UpdateLog "Copying files to application directory"
   Copy-Item -Path (Join-Path $SourceDir "*") -Destination $AppDir -Recurse -Force
 
-  Write-UpdateLog "Starting updated AndreyVPN"
-  Start-Process -FilePath $ExePath -WorkingDirectory $AppDir
+  $UpdatedExePath = Join-Path $AppDir "AndreyVPN.exe"
+  if (-not (Test-Path $UpdatedExePath)) { throw "Updated AndreyVPN.exe was not found at $UpdatedExePath" }
 
+  Write-UpdateLog "Starting updated AndreyVPN: $UpdatedExePath"
+  Start-Process -FilePath $UpdatedExePath -WorkingDirectory $AppDir
   Write-UpdateLog "Update completed successfully"
 } catch {
   Write-UpdateLog "Update failed: $($_.Exception.Message)"
-  [System.Windows.MessageBox]::Show("AndreyVPN update failed. Log: $LogPath", "AndreyVPN Update", "OK", "Error") | Out-Null
+  $msg = "AndreyVPN update failed.`n`nLog file:`n$LogPath`n`nError:`n$($_.Exception.Message)"
+  Add-Type -AssemblyName PresentationFramework -ErrorAction SilentlyContinue
+  try { [System.Windows.MessageBox]::Show($msg, "AndreyVPN Update", "OK", "Error") | Out-Null } catch { Write-Host $msg }
 } finally {
   try { Remove-Item -Path $WorkDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 }
