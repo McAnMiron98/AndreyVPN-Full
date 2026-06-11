@@ -21,7 +21,7 @@ jobs:
 
       - name: Prepare Windows core
         shell: bash
-        run: make windows-amd64-prepare
+        run: make windows-prepare
 
       - name: Get Flutter packages
         run: flutter pub get
@@ -32,10 +32,10 @@ jobs:
       - name: Package portable build
         shell: pwsh
         run: |
-          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath AndreyVPN-windows-portable.zip -Force
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath AndreyVPN-0.2-windows-portable.zip -Force
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AndreyVPN-windows-portable
-          path: AndreyVPN-windows-portable.zip
+          name: AndreyVPN-0.2-windows-portable
+          path: AndreyVPN-0.2-windows-portable.zip

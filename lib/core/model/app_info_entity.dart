@@ -17,9 +17,9 @@ class AppInfoEntity with _$AppInfoEntity {
     required Environment environment,
   }) = _AppInfoEntity;
 
-  String get userAgent => "HiddifyNext/$version ($operatingSystem) like ClashMeta v2ray sing-box";
+  String get userAgent => "AndreyVPN/$version ($operatingSystem) like ClashMeta v2ray sing-box";
 
-  String get presentVersion => environment == Environment.prod ? version : "$version ${environment.name}";
+  String get presentVersion => version;
 
   /// formats app info for sharing
   String format() =>
