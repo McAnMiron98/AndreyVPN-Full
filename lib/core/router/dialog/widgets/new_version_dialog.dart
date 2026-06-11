@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -146,29 +147,71 @@ try {
 ''';
 
     await File(scriptPath).writeAsString(script);
-    await Process.start(
-      'powershell.exe',
-      [
-        '-NoProfile',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-NoExit',
-        '-File',
-        scriptPath,
-        '-AppDir',
-        appDir,
-        '-ExePath',
-        exePath,
-        '-ZipUrl',
-        newVersion.url,
-        '-AppPid',
-        currentPid.toString(),
-      ],
-      mode: ProcessStartMode.detached,
-      runInShell: false,
-    );
 
-    exit(0);
+    final localAppData = Platform.environment['LOCALAPPDATA'] ?? tempDir.path;
+    final logDir = Directory('$localAppData\\AndreyVPN');
+    await logDir.create(recursive: true);
+    final launcherLogPath = '${logDir.path}\\AndreyVPN-updater-launcher.log';
+    final launcherScriptPath = '${tempDir.path}\\andreyvpn_update_launcher.cmd';
+
+    Future<void> launcherLog(String message) async {
+      final now = DateTime.now().toIso8601String();
+      await File(launcherLogPath).writeAsString('[$now] $message\r\n', mode: FileMode.append, flush: true);
+    }
+
+    await launcherLog('Preparing updater launch');
+    await launcherLog('AppDir=$appDir');
+    await launcherLog('ExePath=$exePath');
+    await launcherLog('ZipUrl=${newVersion.url}');
+    await launcherLog('ScriptPath=$scriptPath');
+
+    final launcherScript = '''@echo off
+setlocal
+set LOGDIR=%LOCALAPPDATA%\\AndreyVPN
+if not exist "%LOGDIR%" mkdir "%LOGDIR%"
+set LOG=%LOGDIR%\\AndreyVPN-updater-launcher.log
+echo [%date% %time%] CMD launcher started>>"%LOG%"
+echo [%date% %time%] Running PowerShell updater>>"%LOG%"
+title AndreyVPN Updater
+powershell.exe -NoProfile -ExecutionPolicy Bypass -NoExit -File "${scriptPath}" -AppDir "${appDir}" -ExePath "${exePath}" -ZipUrl "${newVersion.url}" -AppPid ${currentPid}
+echo [%date% %time%] PowerShell finished with code %ERRORLEVEL%>>"%LOG%"
+echo.
+echo AndreyVPN updater finished. If the application did not restart, check:
+echo %LOGDIR%\\AndreyVPN-update.log
+echo %LOGDIR%\\AndreyVPN-updater-launcher.log
+echo.
+pause
+''';
+    await File(launcherScriptPath).writeAsString(launcherScript);
+    await launcherLog('LauncherScriptPath=$launcherScriptPath');
+
+    try {
+      final process = await Process.start(
+        'cmd.exe',
+        ['/c', 'start', '"AndreyVPN Updater"', launcherScriptPath],
+        mode: ProcessStartMode.detached,
+        runInShell: false,
+      );
+      await launcherLog('cmd.exe started with pid=${process.pid}');
+      await Future<void>.delayed(const Duration(seconds: 2));
+      await launcherLog('Closing AndreyVPN so updater can replace files');
+      exit(0);
+    } catch (error, stackTrace) {
+      await launcherLog('FAILED to launch updater: $error');
+      await launcherLog(stackTrace.toString());
+      if (context.mounted) {
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Не удалось запустить обновление'),
+            content: Text('Лог: $launcherLogPath\n\nОшибка: $error'),
+            actions: [
+              TextButton(onPressed: context.pop, child: const Text('OK')),
+            ],
+          ),
+        );
+      }
+    }
   }
 
   @override
