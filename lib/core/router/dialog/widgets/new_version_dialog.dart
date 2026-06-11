@@ -46,10 +46,77 @@ $WorkDir = Join-Path $env:TEMP ("AndreyVPN_Update_" + [guid]::NewGuid().ToString
 $ZipPath = Join-Path $WorkDir "AndreyVPN-update.zip"
 $ExtractDir = Join-Path $WorkDir "extract"
 
+$Form = $null
+$StatusLabel = $null
+
+function Init-ProgressWindow {
+  try {
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
+
+    $script:Form = New-Object System.Windows.Forms.Form
+    $script:Form.Text = "AndreyVPN Update"
+    $script:Form.Width = 460
+    $script:Form.Height = 170
+    $script:Form.StartPosition = "CenterScreen"
+    $script:Form.FormBorderStyle = "FixedDialog"
+    $script:Form.MaximizeBox = $false
+    $script:Form.MinimizeBox = $false
+    $script:Form.TopMost = $true
+
+    $title = New-Object System.Windows.Forms.Label
+    $title.Text = "Обновление AndreyVPN"
+    $title.Left = 20
+    $title.Top = 18
+    $title.Width = 400
+    $title.Height = 24
+    $title.Font = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.FontStyle]::Bold)
+    $script:Form.Controls.Add($title)
+
+    $script:StatusLabel = New-Object System.Windows.Forms.Label
+    $script:StatusLabel.Text = "Подготовка обновления..."
+    $script:StatusLabel.Left = 20
+    $script:StatusLabel.Top = 54
+    $script:StatusLabel.Width = 400
+    $script:StatusLabel.Height = 24
+    $script:StatusLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+    $script:Form.Controls.Add($script:StatusLabel)
+
+    $progress = New-Object System.Windows.Forms.ProgressBar
+    $progress.Left = 20
+    $progress.Top = 88
+    $progress.Width = 405
+    $progress.Height = 22
+    $progress.Style = "Marquee"
+    $progress.MarqueeAnimationSpeed = 30
+    $script:Form.Controls.Add($progress)
+
+    $script:Form.Show()
+    [System.Windows.Forms.Application]::DoEvents()
+  } catch {}
+}
+
+function Set-UpdateStatus($Message) {
+  try {
+    if ($script:StatusLabel -ne $null) {
+      $script:StatusLabel.Text = $Message
+      [System.Windows.Forms.Application]::DoEvents()
+    }
+  } catch {}
+}
+
+function Close-ProgressWindow {
+  try {
+    if ($script:Form -ne $null) {
+      $script:Form.Close()
+      $script:Form.Dispose()
+    }
+  } catch {}
+}
+
 function Write-UpdateLog($Message) {
   $stamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
   $line = "[$stamp] $Message"
-  Write-Host $line
   Add-Content -Path $LogPath -Value $line
 }
 
@@ -57,6 +124,7 @@ try {
   New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
   New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null
   New-Item -ItemType Directory -Force -Path $ExtractDir | Out-Null
+  Init-ProgressWindow
 
   Write-UpdateLog "=== AndreyVPN updater started ==="
   Write-UpdateLog "AppDir=$AppDir"
@@ -64,10 +132,12 @@ try {
   Write-UpdateLog "ZipUrl=$ZipUrl"
   Write-UpdateLog "AppPid=$AppPid"
 
+  Set-UpdateStatus "Скачивание обновления..."
   Write-UpdateLog "Downloading update zip..."
   Invoke-WebRequest -Uri $ZipUrl -OutFile $ZipPath -UseBasicParsing
   Write-UpdateLog "Download completed: $ZipPath"
 
+  Set-UpdateStatus "Ожидание закрытия AndreyVPN..."
   Write-UpdateLog "Waiting for AndreyVPN to close..."
   try {
     Wait-Process -Id $AppPid -Timeout 120 -ErrorAction SilentlyContinue
@@ -76,6 +146,7 @@ try {
   }
   Start-Sleep -Seconds 3
 
+  Set-UpdateStatus "Распаковка обновления..."
   Write-UpdateLog "Extracting update zip..."
   Expand-Archive -Path $ZipPath -DestinationPath $ExtractDir -Force
 
@@ -111,10 +182,11 @@ try {
     throw "AndreyVPN.exe was not found inside downloaded update archive."
   }
 
+  Set-UpdateStatus "Замена файлов..."
   Write-UpdateLog "SourceDir=$SourceDir"
   Write-UpdateLog "Replacing files with robocopy..."
   $robocopyArgs = @($SourceDir, $AppDir, "/E", "/COPY:DAT", "/R:10", "/W:1", "/NP")
-  & robocopy @robocopyArgs
+  & robocopy @robocopyArgs | Out-Null
   $code = $LASTEXITCODE
   Write-UpdateLog "Robocopy exit code: $code"
   if ($code -ge 8) {
@@ -126,23 +198,20 @@ try {
     throw "Updated AndreyVPN.exe not found at $UpdatedExe"
   }
 
+  Set-UpdateStatus "Запуск обновлённой версии..."
   Write-UpdateLog "Starting updated AndreyVPN..."
   Start-Process -FilePath $UpdatedExe -WorkingDirectory $AppDir
   Write-UpdateLog "=== Update completed successfully ==="
-  Write-Host ""
-  Write-Host "Update completed. You can close this window."
+  Start-Sleep -Seconds 2
 } catch {
   Write-UpdateLog "UPDATE FAILED: $($_.Exception.Message)"
   try {
     Add-Type -AssemblyName PresentationFramework
     [System.Windows.MessageBox]::Show("AndreyVPN update failed.`n`nLog: $LogPath", "AndreyVPN Update", "OK", "Error") | Out-Null
   } catch {}
-  Write-Host ""
-  Write-Host "Update failed. Log: $LogPath"
-  Write-Host "Press Enter to close this window."
-  Read-Host | Out-Null
 } finally {
   Write-UpdateLog "WorkDir kept for diagnostics: $WorkDir"
+  Close-ProgressWindow
 }
 ''';
 
@@ -165,35 +234,35 @@ try {
     await launcherLog('ZipUrl=${newVersion.url}');
     await launcherLog('ScriptPath=$scriptPath');
 
-    final launcherScript = '''@echo off
-setlocal
-set LOGDIR=%LOCALAPPDATA%\\AndreyVPN
-if not exist "%LOGDIR%" mkdir "%LOGDIR%"
-set LOG=%LOGDIR%\\AndreyVPN-updater-launcher.log
-echo [%date% %time%] CMD launcher started>>"%LOG%"
-echo [%date% %time%] Running PowerShell updater>>"%LOG%"
-title AndreyVPN Updater
-powershell.exe -NoProfile -ExecutionPolicy Bypass -NoExit -File "${scriptPath}" -AppDir "${appDir}" -ExePath "${exePath}" -ZipUrl "${newVersion.url}" -AppPid ${currentPid}
-echo [%date% %time%] PowerShell finished with code %ERRORLEVEL%>>"%LOG%"
-echo.
-echo AndreyVPN updater finished. If the application did not restart, check:
-echo %LOGDIR%\\AndreyVPN-update.log
-echo %LOGDIR%\\AndreyVPN-updater-launcher.log
-echo.
-pause
-''';
-    await File(launcherScriptPath).writeAsString(launcherScript);
-    await launcherLog('LauncherScriptPath=$launcherScriptPath');
+    // Starting PowerShell directly avoids a visible console window. The PowerShell
+    // script itself shows a small progress window and then exits automatically.
+    await launcherLog('PowerShellScriptPath=$scriptPath');
 
     try {
       final process = await Process.start(
-        launcherScriptPath,
-        const [],
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-WindowStyle',
+          'Hidden',
+          '-File',
+          scriptPath,
+          '-AppDir',
+          appDir,
+          '-ExePath',
+          exePath,
+          '-ZipUrl',
+          newVersion.url,
+          '-AppPid',
+          '$currentPid',
+        ],
         mode: ProcessStartMode.detached,
-        runInShell: true,
+        runInShell: false,
         workingDirectory: tempDir.path,
       );
-      await launcherLog('updater launcher started with pid=${process.pid}');
+      await launcherLog('PowerShell updater started with pid=${process.pid}');
       await Future<void>.delayed(const Duration(seconds: 2));
       await launcherLog('Closing AndreyVPN so updater can replace files');
       exit(0);
