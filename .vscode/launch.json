@@ -19,7 +19,7 @@
             "buildFlags": "-tags with_clash_api,with_gvisor,with_quic,with_wireguard,with_grpc,with_ech,with_utls,with_reality_server"
         },
         {
-            "name": "Hiddify Dev",
+            "name": "AndreyVPN Dev",
             "request": "launch",
             "type": "dart",
             "flutterMode": "debug",
@@ -27,7 +27,7 @@
             // "args": ["-d","192.168.1.35:36463"]
         },
         {
-            "name": "Hiddify Dev Windows Portable",
+            "name": "AndreyVPN Dev Windows Portable",
             "request": "launch",
             "type": "dart",
             "flutterMode": "debug",
@@ -39,21 +39,21 @@
             ]
         },
         {
-            "name": "Hiddify Dev Release",
+            "name": "AndreyVPN Dev Release",
             "request": "launch",
             "type": "dart",
             "flutterMode": "release",
             "program": "lib/main.dart",
         },
         {
-            "name": "Hiddify Dev Profile",
+            "name": "AndreyVPN Dev Profile",
             "request": "launch",
             "type": "dart",
             "flutterMode": "profile",
             "program": "lib/main.dart",
         },
         {
-            "name": "Hiddify Prod",
+            "name": "AndreyVPN Prod",
             "request": "launch",
             "type": "dart",
             "flutterMode": "release",

@@ -1,6 +1,6 @@
 # AndreyVPN 0.1 Full Source
 
-Это полный исходный код Hiddify 4.1.1 с минимальным ребрендингом под AndreyVPN.
+Это полный исходный код AndreyVPN 4.1.1 с минимальным ребрендингом под AndreyVPN.
 
 Что изменено:
 
@@ -19,7 +19,7 @@
 - sing-box / core API
 - структура проекта
 - платформенные папки Android/iOS/Linux/macOS
-- оригинальные workflow Hiddify сохранены
+- оригинальные workflow AndreyVPN сохранены
 
 Рекомендуемый workflow для сборки:
 

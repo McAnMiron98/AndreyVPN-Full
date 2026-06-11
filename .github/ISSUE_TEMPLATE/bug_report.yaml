@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-description: Report a bug encountered while using Hiddify
+description: Report a bug encountered while using AndreyVPN
 labels: ["bug"]
 body:
   - type: markdown
@@ -33,7 +33,7 @@ body:
         - Linux
         - Android TV
         - iOS
-        - HiddifyCli (Core)
+        - AndreyVPNCli (Core)
     validations:
       required: true
   - type: input
@@ -46,8 +46,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: Hiddify Version
-      description: "What version of Hiddify are you using?"
+      label: AndreyVPN Version
+      description: "What version of AndreyVPN are you using?"
     validations:
       required: true
   - type: textarea

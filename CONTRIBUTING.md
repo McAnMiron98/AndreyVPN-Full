@@ -1,6 +1,6 @@
 # Contributing
 
-Every contribution to HiddifyApp is welcome, whether it is reporting a bug, submitting a fix, proposing new features, or just asking a question. To make contributing to HiddifyApp as easy as possible, you will find more details for the development flow in this documentation. [Basic tutorial on how to contribute to HiddifyApp](https://hiddify.com/app/How-to-contribute-to-this-project/)
+Every contribution to AndreyVPNApp is welcome, whether it is reporting a bug, submitting a fix, proposing new features, or just asking a question. To make contributing to AndreyVPNApp as easy as possible, you will find more details for the development flow in this documentation. [Basic tutorial on how to contribute to AndreyVPNApp](https://hiddify.com/app/How-to-contribute-to-this-project/)
 
 Please note, we have a [Code of Conduct](https://github.com/hiddify/hiddify-app/blob/main/CODE_OF_CONDUCT.md), please follow it in all your interactions with the project.
 
@@ -23,16 +23,16 @@ If you encounter any issue, or you have an idea to improve, please:
 
 ## Adding new Features
 
-When contributing a complex change to the Hiddify repository, please discuss the change you wish to make within a GitHub issue with the owners of this repository before making the change.
+When contributing a complex change to the AndreyVPN repository, please discuss the change you wish to make within a GitHub issue with the owners of this repository before making the change.
 
 
 ## Development
 
 ### Adding Feature / Fix bug in Core:
-Please follow our [Go Core Development repository](https://github.com/hiddify/hiddify-next-core/main/CONTRIBUTING.m).
+Please follow our [Go Core Development repository](https://github.com/hiddify/andreyvpn-core/main/CONTRIBUTING.m).
 
 ### Working with the Flutter Code
-Hiddify uses [Flutter](https://flutter.dev), make sure that you have the correct version installed before starting development. You can use the following commands to check your installed version:
+AndreyVPN uses [Flutter](https://flutter.dev), make sure that you have the correct version installed before starting development. You can use the following commands to check your installed version:
 
 ```shell
 $ flutter --version
@@ -50,7 +50,7 @@ We recommend using [Visual Studio Code](https://docs.flutter.dev/development/too
 #### Setting up the Environment
 
 We have extensive use of code generation in the form of [freezed](https://github.com/rrousselGit/freezed), [riverpod](https://github.com/rrousselGit/riverpod), etc. So it's generate these before running the code. Execute the following make commands in order:
-Assuming you have not built the `hiddify-core` and want to use [existing releases](https://github.com/hiddify/hiddify-next-core/releases), you should run the following command (based on your target platform):
+Assuming you have not built the `hiddify-core` and want to use [existing releases](https://github.com/hiddify/andreyvpn-core/releases), you should run the following command (based on your target platform):
 
 
 - `make windows-prepare`
