@@ -23,12 +23,23 @@ abstract class GithubReleaseParser {
     }
     final preRelease = json["prerelease"] as bool;
     final publishedAt = DateTime.parse(json["published_at"] as String);
+    final assets = (json["assets"] as List?) ?? const [];
+    final portableAsset = assets
+        .cast<Map<String, dynamic>>()
+        .firstOrNullWhere(
+          (asset) {
+            final name = (asset["name"] as String? ?? "").toLowerCase();
+            return name.contains("windows") && name.contains("portable") && name.endsWith(".zip");
+          },
+        );
+    final downloadUrl = portableAsset?["browser_download_url"] as String?;
+
     return RemoteVersionEntity(
       version: version,
       buildNumber: buildNumber,
       releaseTag: fullTag,
       preRelease: preRelease,
-      url: json["html_url"] as String,
+      url: downloadUrl ?? json["html_url"] as String,
       publishedAt: publishedAt,
       flavor: flavor,
     );
