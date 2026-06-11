@@ -127,10 +127,10 @@ try {
   }
 
   Write-UpdateLog "Starting updated AndreyVPN..."
-  Start-Process -FilePath $UpdatedExe -WorkingDirectory $AppDir
+  Start-Process -FilePath "cmd.exe" -ArgumentList @("/c", "start", "", "`"$UpdatedExe`"") -WorkingDirectory $AppDir -WindowStyle Hidden
   Write-UpdateLog "=== Update completed successfully ==="
-  Write-Host ""
-  Write-Host "Update completed. Closing updater window..."
+  Start-Sleep -Milliseconds 500
+  exit 0
 } catch {
   Write-UpdateLog "UPDATE FAILED: $($_.Exception.Message)"
   try {
@@ -175,12 +175,7 @@ echo [%date% %time%] Running PowerShell updater>>"%LOG%"
 title AndreyVPN Updater
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}" -AppDir "${appDir}" -ExePath "${exePath}" -ZipUrl "${newVersion.url}" -AppPid ${currentPid}
 echo [%date% %time%] PowerShell finished with code %ERRORLEVEL%>>"%LOG%"
-echo.
-echo AndreyVPN updater finished. If the application did not restart, check:
-echo %LOGDIR%\\AndreyVPN-update.log
-echo %LOGDIR%\\AndreyVPN-updater-launcher.log
-echo.
-pause
+exit /b %ERRORLEVEL%
 ''';
     await File(launcherScriptPath).writeAsString(launcherScript);
     await launcherLog('LauncherScriptPath=$launcherScriptPath');
