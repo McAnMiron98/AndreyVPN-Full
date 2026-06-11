@@ -1,9 +1,12 @@
 import 'package:dartx/dartx.dart';
 import 'package:flutter/material.dart';
+import 'package:hiddify/core/app_info/app_info_provider.dart';
 import 'package:hiddify/core/haptic/haptic_service.dart';
 import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/core/preferences/general_preferences.dart';
 import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
+import 'package:hiddify/features/app_update/notifier/app_update_notifier.dart';
+import 'package:hiddify/features/app_update/notifier/app_update_state.dart';
 import 'package:hiddify/features/auto_start/notifier/auto_start_notifier.dart';
 import 'package:hiddify/features/common/general_pref_tiles.dart';
 import 'package:hiddify/features/log/model/log_level.dart';
@@ -61,6 +64,59 @@ class GeneralPage extends HookConsumerWidget {
               secondary: const Icon(Icons.visibility_off_rounded),
               value: ref.watch(Preferences.silentStart),
               onChanged: ref.read(Preferences.silentStart.notifier).update,
+            ),
+
+            ListTile(
+              title: const Text('Проверить наличие обновлений'),
+              subtitle: const Text('Проверить, доступна ли новая версия AndreyVPN'),
+              leading: const Icon(Icons.system_update_rounded),
+              onTap: () async {
+                final dialog = ref.read(dialogNotifierProvider.notifier);
+                final appInfo = ref.read(appInfoProvider).requireValue;
+                final updateState = await ref.read(appUpdateNotifierProvider.notifier).check();
+
+                if (updateState is AppUpdateStateAvailable) {
+                  await dialog.showNewVersion(
+                    currentVersion: appInfo.version,
+                    newVersion: updateState.versionInfo,
+                    canIgnore: false,
+                  );
+                  return;
+                }
+
+                if (updateState is AppUpdateStateIgnored) {
+                  await dialog.showNewVersion(
+                    currentVersion: appInfo.version,
+                    newVersion: updateState.versionInfo,
+                    canIgnore: false,
+                  );
+                  return;
+                }
+
+                if (updateState is AppUpdateStateNotAvailable) {
+                  await dialog.showOk(
+                    'Обновлений нет',
+                    'Установлена актуальная версия AndreyVPN ${appInfo.presentVersion}.',
+                  );
+                  return;
+                }
+
+                if (updateState is AppUpdateStateDisabled) {
+                  await dialog.showOk(
+                    'Проверка обновлений отключена',
+                    'Проверка обновлений сейчас недоступна.',
+                  );
+                  return;
+                }
+
+                if (updateState is AppUpdateStateError) {
+                  await dialog.showOk(
+                    'Ошибка проверки обновлений',
+                    'Не удалось проверить наличие обновлений. Проверьте интернет и попробуйте ещё раз.',
+                  );
+                  return;
+                }
+              },
             ),
           ],
           if (PlatformUtils.isAndroid) const BatteryOptimizationWidget(),
