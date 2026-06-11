@@ -127,7 +127,7 @@ try {
   }
 
   Write-UpdateLog "Starting updated AndreyVPN..."
-  Start-Process -FilePath "cmd.exe" -ArgumentList @("/c", "start", "", "`"$UpdatedExe`"") -WorkingDirectory $AppDir -WindowStyle Hidden
+  Start-Process -FilePath $UpdatedExe -WorkingDirectory $AppDir
   Write-UpdateLog "=== Update completed successfully ==="
   Start-Sleep -Milliseconds 500
   exit 0
