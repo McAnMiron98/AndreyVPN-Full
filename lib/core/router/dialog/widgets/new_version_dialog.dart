@@ -127,7 +127,11 @@ try {
   }
 
   Write-UpdateLog "Starting updated AndreyVPN..."
-  Start-Process -FilePath $UpdatedExe -WorkingDirectory $AppDir
+  $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+  $startInfo.FileName = $UpdatedExe
+  $startInfo.WorkingDirectory = $AppDir
+  $startInfo.UseShellExecute = $true
+  [System.Diagnostics.Process]::Start($startInfo) | Out-Null
   Write-UpdateLog "=== Update completed successfully ==="
   Start-Sleep -Milliseconds 500
   exit 0
