@@ -200,7 +200,11 @@ try {
 
   Set-UpdateStatus "Запуск обновлённой версии..."
   Write-UpdateLog "Starting updated AndreyVPN..."
-  Start-Process -FilePath $UpdatedExe -WorkingDirectory $AppDir
+  $psi = New-Object System.Diagnostics.ProcessStartInfo
+  $psi.FileName = $UpdatedExe
+  $psi.WorkingDirectory = $AppDir
+  $psi.UseShellExecute = $true
+  [System.Diagnostics.Process]::Start($psi) | Out-Null
   Write-UpdateLog "=== Update completed successfully ==="
   Start-Sleep -Seconds 2
 } catch {
@@ -221,12 +225,14 @@ try {
     final logDir = Directory('$localAppData\\AndreyVPN');
     await logDir.create(recursive: true);
     final launcherLogPath = '${logDir.path}\\AndreyVPN-updater-launcher.log';
-    final launcherScriptPath = '${tempDir.path}\\andreyvpn_update_launcher.cmd';
+    final vbsLauncherPath = '${tempDir.path}\\andreyvpn_update_launcher.vbs';
 
     Future<void> launcherLog(String message) async {
       final now = DateTime.now().toIso8601String();
       await File(launcherLogPath).writeAsString('[$now] $message\r\n', mode: FileMode.append, flush: true);
     }
+
+    String vbsEscape(String value) => value.replaceAll('"', '""');
 
     await launcherLog('Preparing updater launch');
     await launcherLog('AppDir=$appDir');
@@ -234,35 +240,30 @@ try {
     await launcherLog('ZipUrl=${newVersion.url}');
     await launcherLog('ScriptPath=$scriptPath');
 
-    // Starting PowerShell directly avoids a visible console window. The PowerShell
-    // script itself shows a small progress window and then exits automatically.
-    await launcherLog('PowerShellScriptPath=$scriptPath');
+    final psCommand = 'powershell.exe -NoProfile -STA -ExecutionPolicy Bypass '
+        '-File "${vbsEscape(scriptPath)}" '
+        '-AppDir "${vbsEscape(appDir)}" '
+        '-ExePath "${vbsEscape(exePath)}" '
+        '-ZipUrl "${vbsEscape(newVersion.url)}" '
+        '-AppPid $currentPid';
+
+    final vbsLauncher = '''
+Set shell = CreateObject("WScript.Shell")
+shell.Run "$psCommand", 0, False
+''';
+
+    await File(vbsLauncherPath).writeAsString(vbsLauncher);
+    await launcherLog('VbsLauncherPath=$vbsLauncherPath');
 
     try {
       final process = await Process.start(
-        'powershell.exe',
-        [
-          '-NoProfile',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-WindowStyle',
-          'Hidden',
-          '-File',
-          scriptPath,
-          '-AppDir',
-          appDir,
-          '-ExePath',
-          exePath,
-          '-ZipUrl',
-          newVersion.url,
-          '-AppPid',
-          '$currentPid',
-        ],
+        'wscript.exe',
+        [vbsLauncherPath],
         mode: ProcessStartMode.detached,
         runInShell: false,
         workingDirectory: tempDir.path,
       );
-      await launcherLog('PowerShell updater started with pid=${process.pid}');
+      await launcherLog('VBS updater launcher started with pid=${process.pid}');
       await Future<void>.delayed(const Duration(seconds: 2));
       await launcherLog('Closing AndreyVPN so updater can replace files');
       exit(0);
