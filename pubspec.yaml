@@ -1,7 +1,7 @@
 name: hiddify
 description: AndreyVPN Windows VPN client.
 publish_to: "none"
-version: 0.8.6+46
+version: 0.8.7+47
 environment:
   sdk: ^3.10.4
   # ! IMPORTANT !

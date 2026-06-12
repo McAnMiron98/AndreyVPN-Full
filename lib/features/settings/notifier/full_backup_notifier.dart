@@ -48,11 +48,14 @@ class FullBackupNotifier with AppLogger {
 
       final manifest = <String, dynamic>{
         'app': 'AndreyVPN',
+        'appVersion': '0.8.7+47',
         'type': 'full_backup',
-        'format': 1,
+        'format': 2,
         'diagnostic': true,
         'createdAt': DateTime.now().toIso8601String(),
         'items': <String>[],
+        'fileCount': 0,
+        'backupSizeBytes': 0,
       };
 
       final baseCount = await _copyDirectoryIfExists(
@@ -91,24 +94,35 @@ class FullBackupNotifier with AppLogger {
       }
 
       final manifestPath = p.join(stagingDir.path, 'andreyvpn_backup_manifest.json');
+      final diagnosticFilePath = p.join(stagingDir.path, 'andreyvpn_backup_diagnostic.log');
+      final archivePath = p.join(tempRoot.path, _defaultBackupFileName());
+      final archiveFile = File(archivePath);
+
+      final stagingFileCount = await _countFiles(stagingDir);
+      manifest['fileCount'] = stagingFileCount + 2; // manifest + diagnostic log
       await File(manifestPath).writeAsString(
         const JsonEncoder.withIndent('  ').convert(manifest),
       );
       diag('manifest written: $manifestPath');
+      diag('staging total files before zip: ${await _countFiles(stagingDir)}');
 
-      final stagingFileCount = await _countFiles(stagingDir);
-      diag('staging total files before zip: $stagingFileCount');
-
-      final diagnosticFilePath = p.join(stagingDir.path, 'andreyvpn_backup_diagnostic.log');
       await File(diagnosticFilePath).writeAsString(diagnostics.toString(), flush: true);
       diag('diagnostic log added to staging: $diagnosticFilePath');
 
-      final archivePath = p.join(tempRoot.path, _defaultBackupFileName());
       diag('creating zip: $archivePath');
-      final zipEntryCount = await _createZipFromDirectory(stagingDir, File(archivePath), diagnostics);
+      var zipEntryCount = await _createZipFromDirectory(stagingDir, archiveFile, diagnostics);
+      var archiveSize = await archiveFile.length();
 
-      final archiveFile = File(archivePath);
-      final archiveSize = await archiveFile.length();
+      manifest['fileCount'] = zipEntryCount;
+      manifest['backupSizeBytes'] = archiveSize;
+      await File(manifestPath).writeAsString(
+        const JsonEncoder.withIndent('  ').convert(manifest),
+      );
+      await File(diagnosticFilePath).writeAsString(diagnostics.toString(), flush: true);
+      diag('manifest updated with file count and first-pass zip size');
+
+      zipEntryCount = await _createZipFromDirectory(stagingDir, archiveFile, diagnostics);
+      archiveSize = await archiveFile.length();
       diag('zip created, size bytes: $archiveSize');
       diag('zip entries written: $zipEntryCount');
       final backupBytes = await archiveFile.readAsBytes();
@@ -300,6 +314,9 @@ class FullBackupNotifier with AppLogger {
 
   bool _shouldSkip(String name) {
     return name == 'access_test.txt' ||
+        name == 'app.log' ||
+        name == 'box.log' ||
+        name == 'goroutine-start.log' ||
         name.endsWith('-journal') ||
         name.endsWith('-shm') ||
         name.endsWith('-wal') ||
