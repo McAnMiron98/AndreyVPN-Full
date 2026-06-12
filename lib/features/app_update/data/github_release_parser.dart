@@ -1,6 +1,6 @@
 import 'package:dartx/dartx.dart';
-import 'package:hiddify/core/model/environment.dart';
-import 'package:hiddify/features/app_update/model/remote_version_entity.dart';
+import 'package:andreyvpn/core/model/environment.dart';
+import 'package:andreyvpn/features/app_update/model/remote_version_entity.dart';
 
 abstract class GithubReleaseParser {
   static RemoteVersionEntity parse(Map<String, dynamic> json) {

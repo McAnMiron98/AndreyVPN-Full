@@ -1,15 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:hiddify/core/app_info/app_info_provider.dart';
-import 'package:hiddify/core/model/environment.dart';
-import 'package:hiddify/core/model/region.dart';
-import 'package:hiddify/core/preferences/actions_at_closing.dart';
+import 'package:andreyvpn/core/app_info/app_info_provider.dart';
+import 'package:andreyvpn/core/model/environment.dart';
+import 'package:andreyvpn/core/model/region.dart';
+import 'package:andreyvpn/core/preferences/actions_at_closing.dart';
 
-import 'package:hiddify/core/preferences/preferences_provider.dart';
-import 'package:hiddify/core/utils/preferences_utils.dart';
-import 'package:hiddify/features/per_app_proxy/model/per_app_proxy_mode.dart';
-import 'package:hiddify/features/window/notifier/window_notifier.dart';
-import 'package:hiddify/utils/platform_utils.dart';
+import 'package:andreyvpn/core/preferences/preferences_provider.dart';
+import 'package:andreyvpn/core/utils/preferences_utils.dart';
+import 'package:andreyvpn/features/per_app_proxy/model/per_app_proxy_mode.dart';
+import 'package:andreyvpn/features/window/notifier/window_notifier.dart';
+import 'package:andreyvpn/utils/platform_utils.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'general_preferences.g.dart';

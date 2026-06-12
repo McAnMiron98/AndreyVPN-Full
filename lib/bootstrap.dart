@@ -5,27 +5,27 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
-import 'package:hiddify/core/analytics/analytics_controller.dart';
-import 'package:hiddify/core/app_info/app_info_provider.dart';
-import 'package:hiddify/core/directories/directories_provider.dart';
-import 'package:hiddify/core/localization/translations.dart';
-import 'package:hiddify/core/logger/logger.dart';
-import 'package:hiddify/core/logger/logger_controller.dart';
-import 'package:hiddify/core/model/environment.dart';
-import 'package:hiddify/core/preferences/general_preferences.dart';
-import 'package:hiddify/core/preferences/preferences_migration.dart';
-import 'package:hiddify/core/preferences/preferences_provider.dart';
-import 'package:hiddify/features/app/widget/app.dart';
-import 'package:hiddify/features/auto_start/notifier/auto_start_notifier.dart';
+import 'package:andreyvpn/core/analytics/analytics_controller.dart';
+import 'package:andreyvpn/core/app_info/app_info_provider.dart';
+import 'package:andreyvpn/core/directories/directories_provider.dart';
+import 'package:andreyvpn/core/localization/translations.dart';
+import 'package:andreyvpn/core/logger/logger.dart';
+import 'package:andreyvpn/core/logger/logger_controller.dart';
+import 'package:andreyvpn/core/model/environment.dart';
+import 'package:andreyvpn/core/preferences/general_preferences.dart';
+import 'package:andreyvpn/core/preferences/preferences_migration.dart';
+import 'package:andreyvpn/core/preferences/preferences_provider.dart';
+import 'package:andreyvpn/features/app/widget/app.dart';
+import 'package:andreyvpn/features/auto_start/notifier/auto_start_notifier.dart';
 
-import 'package:hiddify/features/log/data/log_data_providers.dart';
-import 'package:hiddify/features/profile/data/profile_data_providers.dart';
-import 'package:hiddify/features/profile/notifier/active_profile_notifier.dart';
-import 'package:hiddify/features/system_tray/notifier/system_tray_notifier.dart';
-import 'package:hiddify/features/window/notifier/window_notifier.dart';
-import 'package:hiddify/hiddifycore/hiddify_core_service_provider.dart';
-import 'package:hiddify/riverpod_observer.dart';
-import 'package:hiddify/utils/utils.dart';
+import 'package:andreyvpn/features/log/data/log_data_providers.dart';
+import 'package:andreyvpn/features/profile/data/profile_data_providers.dart';
+import 'package:andreyvpn/features/profile/notifier/active_profile_notifier.dart';
+import 'package:andreyvpn/features/system_tray/notifier/system_tray_notifier.dart';
+import 'package:andreyvpn/features/window/notifier/window_notifier.dart';
+import 'package:andreyvpn/andreyvpncore/andreyvpn_core_service_provider.dart';
+import 'package:andreyvpn/riverpod_observer.dart';
+import 'package:andreyvpn/utils/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -87,7 +87,7 @@ Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async
   await _init("translations", () => container.read(translationsProvider.future));
 
   await _safeInit("active profile", () => container.read(activeProfileProvider.future), timeout: 1000);
-  await _init("hiddify-core", () => container.read(hiddifyCoreServiceProvider).init());
+  await _init("andreyvpn-core", () => container.read(andreyvpnCoreServiceProvider).init());
 
   if (!kIsWeb) {
     // await _safeInit(

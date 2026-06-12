@@ -1,6 +1,6 @@
 # AndreyVPN 0.3
 
-- Disabled automatic update checks inherited from Hiddify.
+- Disabled automatic update checks inherited from AndreyVPN.
 - Removed the startup update popup.
 - Removed the manual update check item from the About page.
 - Updated app version to 0.3.0.

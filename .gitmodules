@@ -1,4 +1,4 @@
-[submodule "hiddify-core"]
-	path = hiddify-core
-	url = ssh://git@github.com/hiddify/hiddify-core
+[submodule "andreyvpn-core"]
+	path = andreyvpn-core
+	url = ssh://git@github.com/andreyvpn/andreyvpn-core
 	branch = v3

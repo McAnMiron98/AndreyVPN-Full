@@ -1,8 +1,8 @@
 //profile-title: base64:8J+UpVBzaXBob24gJiBXQVJQIPCflKU=
 //profile-update-interval: 24
 //subscription-userinfo: upload=0; download=0; total=10737418240000000; expire=2546249531
-//support-url: https://t.me/hiddify
-//profile-web-page-url: https://hiddify.com
+//support-url: https://t.me/andreyvpn
+//profile-web-page-url: https://andreyvpn.com
 
 psiphon://auto/
 #psiphon://auto/?region=...&remote_server_list_url=...&remote_server_list_download_filename=...&remote_server_list_signature_public_key=...

@@ -39,20 +39,20 @@ else
 endif
 
 
-BINDIR=hiddify-core$(SEP)bin
+BINDIR=andreyvpn-core$(SEP)bin
 ANDROID_OUT=android$(SEP)app$(SEP)libs
 IOS_OUT=ios$(SEP)Frameworks
-DESKTOP_OUT=hiddify-core$(SEP)bin
+DESKTOP_OUT=andreyvpn-core$(SEP)bin
 GEO_ASSETS_DIR=assets$(SEP)core
 
-CORE_PRODUCT_NAME=hiddify-core
-CORE_NAME=hiddify-lib
-LIB_NAME=hiddify-core
+CORE_PRODUCT_NAME=andreyvpn-core
+CORE_NAME=andreyvpn-lib
+LIB_NAME=andreyvpn-core
 
 ifeq ($(CHANNEL),prod)
-	CORE_URL=https://github.com/hiddify/hiddify-next-core/releases/download/v$(core.version)
+	CORE_URL=https://github.com/andreyvpn/andreyvpn-next-core/releases/download/v$(core.version)
 else
-	CORE_URL=https://github.com/hiddify/hiddify-next-core/releases/download/draft
+	CORE_URL=https://github.com/andreyvpn/andreyvpn-next-core/releases/download/draft
 endif
 
 ifeq ($(CHANNEL),prod)
@@ -113,28 +113,28 @@ android-aab-prepare:android-prepare
 generate_kotlin_protos: 
 	# Run protoc to generate Kotlin files
 	# protoc \
-	# 	--proto_path=hiddify-core/ \
+	# 	--proto_path=andreyvpn-core/ \
 	# 	--java_out=./android/app/src/main/java/ \
 	# 	--grpc-java_out=./android/app/src/main/java/ \
-	# 	$(shell find hiddify-core/v2 hiddify-core/extension -name "*.proto")
+	# 	$(shell find andreyvpn-core/v2 andreyvpn-core/extension -name "*.proto")
 	rsync -av --delete \
 		--include='*/' \
 		--include='*.proto' \
 		--exclude='*' \
-		hiddify-core/v2 hiddify-core/extension ./android/app/src/main/protos/
+		andreyvpn-core/v2 andreyvpn-core/extension ./android/app/src/main/protos/
 	# # Find .proto files and update package declarations
-	# find "./android/app/src/main/java/com/hiddify/hiddify/protos" -type f -name "*.java" | while read -r proto_file; do \
+	# find "./android/app/src/main/java/com/andreyvpn/andreyvpn/protos" -type f -name "*.java" | while read -r proto_file; do \
 	#     if grep -q "^package " "$$proto_file"; then \
-	#         $(SED) 's/^package \([\w\.]*\)/package com.hiddify.hiddify.protos.\1/g' "$$proto_file"; \
+	#         $(SED) 's/^package \([\w\.]*\)/package com.andreyvpn.andreyvpn.protos.\1/g' "$$proto_file"; \
 	#     fi \
 	# done
 
 generate_go_protoc:
-	make -C hiddify-core -f Makefile protos
+	make -C andreyvpn-core -f Makefile protos
 	echo "SED: $(SED)"
 generate_dart_protoc:
-	mkdir -p lib/hiddifycore/generated
-	protoc --dart_out=grpc:lib/hiddifycore/generated --proto_path=hiddify-core/  $(shell find hiddify-core/v2 hiddify-core/extension -name "*.proto") 	google/protobuf/timestamp.proto ; \
+	mkdir -p lib/andreyvpncore/generated
+	protoc --dart_out=grpc:lib/andreyvpncore/generated --proto_path=andreyvpn-core/  $(shell find andreyvpn-core/v2 andreyvpn-core/extension -name "*.proto") 	google/protobuf/timestamp.proto ; \
 
 .PHONY: protos
 protos: generate_go_protoc generate_kotlin_protos generate_dart_protoc
@@ -301,11 +301,11 @@ windows-zip-release:
 	$(YELLOW)Post-processing Windows portable$(DONE); \
 	cd "$$ZIP_DIR"; \
 	$(BLUE)Extracting and Repacking...$(DONE); \
-	mkdir -p Hiddify; \
-	unzip -q "$$ZIP_FILE" -d Hiddify/; \
+	mkdir -p AndreyVPN; \
+	unzip -q "$$ZIP_FILE" -d AndreyVPN/; \
 	rm "$$ZIP_FILE"; \
-	tar -a -cf "$$FILE_NAME.zip" Hiddify; \
-	rm -rf Hiddify; \
+	tar -a -cf "$$FILE_NAME.zip" AndreyVPN; \
+	rm -rf AndreyVPN; \
 	$(GREEN)Successful$(DONE)
 
 windows-exe-release:
@@ -384,33 +384,33 @@ linux-appimage-release:
 	cp ../../linux/packaging/appimage/AppRun squashfs-root/AppRun; \
 	$(BLUE)Granting permissions$(DONE); \
 	chmod +x squashfs-root/AppRun; \
-	$(BLUE)Adding StartupWMClass to hiddify.desktop$(DONE); \
-	sed -i '/^\[Desktop Entry\]/a StartupWMClass=app.hiddify.com' "squashfs-root/hiddify.desktop"; \
+	$(BLUE)Adding StartupWMClass to andreyvpn.desktop$(DONE); \
+	sed -i '/^\[Desktop Entry\]/a StartupWMClass=app.andreyvpn.com' "squashfs-root/andreyvpn.desktop"; \
 	$(BLUE)Removing old AppImage$(DONE); \
 	rm *.AppImage; \
 	$(BLUE)Deleting bundled libstdc++ to fix Arch Linux compatibility...$(DONE); \
 	find squashfs-root/usr/lib -name "libstdc++.so.6" -delete; \
 	$(BLUE)Rebuilding AppImage$(DONE); \
-	ARCH=x86_64 appimagetool --no-appstream squashfs-root Hiddify.AppImage > /dev/null; \
+	ARCH=x86_64 appimagetool --no-appstream squashfs-root AndreyVPN.AppImage > /dev/null; \
 	$(BLUE)Cleaning up squashfs$(DONE); \
 	rm -rf squashfs-root; \
 	$(YELLOW)Creating Portable Package$(DONE); \
-	PKG_DIR_NAME="hiddify-linux-appimage"; \
+	PKG_DIR_NAME="andreyvpn-linux-appimage"; \
 	$(BLUE)Creating dir: $$PKG_DIR_NAME$(DONE); \
 	mkdir -p "$$PKG_DIR_NAME"; \
-	$(BLUE)Moving Hiddify.AppImage$(DONE); \
-	cp -p "Hiddify.AppImage" "$$PKG_DIR_NAME/Hiddify.AppImage"; \
+	$(BLUE)Moving AndreyVPN.AppImage$(DONE); \
+	cp -p "AndreyVPN.AppImage" "$$PKG_DIR_NAME/AndreyVPN.AppImage"; \
 	$(BLUE)Creating Portable Home directory$(DONE); \
-	mkdir -p "$$PKG_DIR_NAME/Hiddify.AppImage.home"; \
+	mkdir -p "$$PKG_DIR_NAME/AndreyVPN.AppImage.home"; \
 	$(BLUE)Compressing to .tar.gz$(DONE); \
 	tar -czf "$$PKG_DIR_NAME.tar.gz" -C . "$$PKG_DIR_NAME"; \
 	$(BLUE)Removing intermediate directory$(DONE); \
 	rm -rf "$$PKG_DIR_NAME"; \
 	$(GREEN)Successful$(DONE)
 
-DOCKER_IMAGE_NAME := hiddify-linux-builder
-DOCKER_FLUTTER_VOL := hiddify-flutter-sdk-cache
-DOCKER_PUB_VOL := hiddify-pub-cache
+DOCKER_IMAGE_NAME := andreyvpn-linux-builder
+DOCKER_FLUTTER_VOL := andreyvpn-flutter-sdk-cache
+DOCKER_PUB_VOL := andreyvpn-pub-cache
 
 ifeq ($(OS),Windows_NT)
     FIX_OWNERSHIP := echo \"Windows detected: Skipping chown\"
@@ -503,7 +503,7 @@ macos-libs:
 
 ios-libs: #not tested
 	mkdir -p $(IOS_OUT)
-	rm -rf $(IOS_OUT)/HiddifyCore.xcframework
+	rm -rf $(IOS_OUT)/AndreyVPNCore.xcframework
 	curl -L $(CORE_URL)/$(CORE_NAME)-ios.tar.gz | tar xz -C "$(IOS_OUT)"
 
 get-geo-assets:
@@ -512,25 +512,25 @@ get-geo-assets:
 	# curl -L https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db -o $(GEO_ASSETS_DIR)/geosite.db
 
 build-headers:
-	make -C hiddify-core -f Makefile headers && mv $(BINDIR)/$(CORE_NAME)-headers.h $(BINDIR)/hiddify-core.h
+	make -C andreyvpn-core -f Makefile headers && mv $(BINDIR)/$(CORE_NAME)-headers.h $(BINDIR)/andreyvpn-core.h
 
 build-android-libs:
-	make -C hiddify-core -f Makefile android 
+	make -C andreyvpn-core -f Makefile android 
 	mv $(BINDIR)/$(LIB_NAME).aar $(ANDROID_OUT)/
 
 build-windows-libs:
-	make -C hiddify-core -f Makefile windows-amd64
+	make -C andreyvpn-core -f Makefile windows-amd64
 
 build-linux-libs:
-	make -C hiddify-core -f Makefile linux-amd64 
+	make -C andreyvpn-core -f Makefile linux-amd64 
 
 build-macos-libs:
-	make -C hiddify-core -f Makefile macos
+	make -C andreyvpn-core -f Makefile macos
 
 build-ios-libs: 
-	rm -rf $(IOS_OUT)/HiddifyCore.xcframework 
-	make -C hiddify-core -f Makefile ios  
-	mv $(BINDIR)/HiddifyCore.xcframework $(IOS_OUT)/HiddifyCore.xcframework
+	rm -rf $(IOS_OUT)/AndreyVPNCore.xcframework 
+	make -C andreyvpn-core -f Makefile ios  
+	mv $(BINDIR)/AndreyVPNCore.xcframework $(IOS_OUT)/AndreyVPNCore.xcframework
 
 release: # Create a new tag for release.
 	@CORE_VERSION=$(core.version) bash -c ".github/change_version.sh "
