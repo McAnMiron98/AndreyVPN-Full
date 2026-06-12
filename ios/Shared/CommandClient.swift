@@ -1,5 +1,5 @@
 import Foundation
-import AndreyVPNCore
+import HiddifyCore
 
 public class CommandClient: ObservableObject {
     public enum ConnectionType {

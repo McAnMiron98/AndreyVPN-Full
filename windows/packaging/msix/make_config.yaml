@@ -5,7 +5,7 @@ msix_version: 0.4.0.0
 logo_path: windows\runner\resources\app_icon.ico
 capabilities: internetClient, internetClientServer, privateNetworkClientServer
 languages: ar, en-us, es-es, fa-ir, fr-fr, id-id, pt-br, ru-ru, tr-tr, zh-cn, zh-tw
-protocol_activation: andreyvpn, v2ray, v2rayn, v2rayng, clash, clashmeta, sing-box
+protocol_activation: hiddify, v2ray, v2rayn, v2rayng, clash, clashmeta, sing-box
 execution_alias: andreyvpn
 certificate_path: windows\sign.pfx
 certificate_password:
@@ -16,6 +16,6 @@ startup_task:
   parameters: --autostart
 
 # For testing with a self-signed certificate
-# publisher: CN=AndreyVPN-Test
+# publisher: CN=Hiddify-Test
 # certificate_password: "1234"
 # install_certificate: "true"

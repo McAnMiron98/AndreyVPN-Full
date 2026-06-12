@@ -1,11 +1,11 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
-import 'package:andreyvpn/core/db/converters/duration_converter.dart';
-import 'package:andreyvpn/core/db/db.steps.dart';
-import 'package:andreyvpn/core/directories/directories_provider.dart';
-import 'package:andreyvpn/features/per_app_proxy/model/per_app_proxy_mode.dart';
-import 'package:andreyvpn/features/profile/model/profile_entity.dart';
-import 'package:andreyvpn/utils/custom_loggers.dart';
+import 'package:hiddify/core/db/converters/duration_converter.dart';
+import 'package:hiddify/core/db/db.steps.dart';
+import 'package:hiddify/core/directories/directories_provider.dart';
+import 'package:hiddify/features/per_app_proxy/model/per_app_proxy_mode.dart';
+import 'package:hiddify/features/profile/model/profile_entity.dart';
+import 'package:hiddify/utils/custom_loggers.dart';
 
 part 'db.g.dart';
 

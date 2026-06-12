@@ -4,23 +4,23 @@
 import PackageDescription
 
 let package = Package(
-     name: "AndreyVPN Packages",
+     name: "Hiddify Packages",
      platforms: [
         // Minimum platform version
          .iOS(.v13)
      ],
      products: [
          .library(
-             name: "AndreyVPNCore",
-             targets: ["AndreyVPNCore"]),
+             name: "HiddifyCore",
+             targets: ["HiddifyCore"]),
      ],
      dependencies: [
          // No dependencies
      ],
      targets: [
         .binaryTarget(
-            name: "AndreyVPNCore",
-            path: "../Frameworks/AndreyVPNCore.xcframework"
+            name: "HiddifyCore",
+            path: "../Frameworks/HiddifyCore.xcframework"
         )
      ]
  )

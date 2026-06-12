@@ -15,7 +15,7 @@
 Что НЕ менялось:
 
 - VPN-логика
-- andreyvpn-core
+- hiddify-core
 - sing-box / core API
 - структура проекта
 - платформенные папки Android/iOS/Linux/macOS

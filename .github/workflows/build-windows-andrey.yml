@@ -39,10 +39,10 @@ jobs:
       - name: Package portable build
         shell: pwsh
         run: |
-          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath AndreyVPN-0.9.0-windows-portable.zip -Force
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath AndreyVPN-0.8.0-windows-portable.zip -Force
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AndreyVPN-0.9.0-windows-portable
-          path: AndreyVPN-0.9.0-windows-portable.zip
+          name: AndreyVPN-0.8.0-windows-portable
+          path: AndreyVPN-0.8.0-windows-portable.zip

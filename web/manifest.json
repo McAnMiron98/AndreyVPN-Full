@@ -1,11 +1,11 @@
 {
-    "name": "AndreyVPN",
-    "short_name": "AndreyVPN",
+    "name": "Hiddify",
+    "short_name": "Hiddify",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "AndreyVPN",
+    "description": "Hiddify",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -1,17 +1,17 @@
 import 'package:fpdart/fpdart.dart';
-import 'package:andreyvpn/core/model/directories.dart';
-import 'package:andreyvpn/core/router/dialog/dialog_notifier.dart';
-import 'package:andreyvpn/core/utils/exception_handler.dart';
-import 'package:andreyvpn/features/connection/model/connection_failure.dart';
-import 'package:andreyvpn/features/connection/model/connection_status.dart';
-import 'package:andreyvpn/features/profile/data/profile_path_resolver.dart';
-import 'package:andreyvpn/features/profile/model/profile_entity.dart';
-import 'package:andreyvpn/features/settings/data/config_option_repository.dart';
-import 'package:andreyvpn/features/settings/notifier/warp_option/warp_option_notifier.dart';
-import 'package:andreyvpn/andreyvpncore/andreyvpn_core_service.dart';
-import 'package:andreyvpn/singbox/model/singbox_config_option.dart';
-import 'package:andreyvpn/singbox/model/core_status.dart';
-import 'package:andreyvpn/utils/utils.dart';
+import 'package:hiddify/core/model/directories.dart';
+import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
+import 'package:hiddify/core/utils/exception_handler.dart';
+import 'package:hiddify/features/connection/model/connection_failure.dart';
+import 'package:hiddify/features/connection/model/connection_status.dart';
+import 'package:hiddify/features/profile/data/profile_path_resolver.dart';
+import 'package:hiddify/features/profile/model/profile_entity.dart';
+import 'package:hiddify/features/settings/data/config_option_repository.dart';
+import 'package:hiddify/features/settings/notifier/warp_option/warp_option_notifier.dart';
+import 'package:hiddify/hiddifycore/hiddify_core_service.dart';
+import 'package:hiddify/singbox/model/singbox_config_option.dart';
+import 'package:hiddify/singbox/model/core_status.dart';
+import 'package:hiddify/utils/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:meta/meta.dart';
 
@@ -37,7 +37,7 @@ class ConnectionRepositoryImpl with ExceptionHandler, InfraLogger implements Con
   final Ref ref;
 
   final Directories directories;
-  final AndreyVPNCoreService singbox;
+  final HiddifyCoreService singbox;
 
   final ConfigOptionRepository configOptionRepository;
   final ProfilePathResolver profilePathResolver;

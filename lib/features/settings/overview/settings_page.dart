@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
-import 'package:andreyvpn/core/localization/translations.dart';
-import 'package:andreyvpn/core/router/dialog/dialog_notifier.dart';
-import 'package:andreyvpn/core/router/go_router/helper/active_breakpoint_notifier.dart';
-import 'package:andreyvpn/features/settings/notifier/config_option/config_option_notifier.dart';
-import 'package:andreyvpn/features/settings/notifier/reset_tunnel/reset_tunnel_notifier.dart';
-import 'package:andreyvpn/utils/utils.dart';
+import 'package:hiddify/core/localization/translations.dart';
+import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
+import 'package:hiddify/core/router/go_router/helper/active_breakpoint_notifier.dart';
+import 'package:hiddify/features/settings/data/app_backup_service.dart';
+import 'package:hiddify/features/settings/notifier/config_option/config_option_notifier.dart';
+import 'package:hiddify/features/settings/notifier/reset_tunnel/reset_tunnel_notifier.dart';
+import 'package:hiddify/utils/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 enum ConfigOptionSection {
@@ -117,6 +118,45 @@ class SettingsPage extends HookConsumerWidget {
                   ),
                 ],
                 child: Text(t.common.export),
+              ),
+              const PopupMenuDivider(),
+              SubmenuButton(
+                menuChildren: <Widget>[
+                  MenuItemButton(
+                    onPressed: () async => await AppBackupService(ref).exportFullBackupToFile(),
+                    child: const Text('Экспорт всего приложения в файл'),
+                  ),
+                  MenuItemButton(
+                    onPressed: () async => await AppBackupService(ref).exportFullBackupToClipboard(),
+                    child: const Text('Экспорт всего приложения в буфер'),
+                  ),
+                  const PopupMenuDivider(),
+                  MenuItemButton(
+                    onPressed: () async => await ref
+                        .read(dialogNotifierProvider.notifier)
+                        .showConfirmation(
+                          title: 'Импорт всего приложения',
+                          message: 'Будут восстановлены настройки, профили, содержимое профилей и списки приложений. Продолжить?',
+                        )
+                        .then((shouldImport) async {
+                          if (shouldImport) await AppBackupService(ref).importFullBackupFromFile();
+                        }),
+                    child: const Text('Импорт всего приложения из файла'),
+                  ),
+                  MenuItemButton(
+                    onPressed: () async => await ref
+                        .read(dialogNotifierProvider.notifier)
+                        .showConfirmation(
+                          title: 'Импорт всего приложения',
+                          message: 'Будут восстановлены настройки, профили, содержимое профилей и списки приложений. Продолжить?',
+                        )
+                        .then((shouldImport) async {
+                          if (shouldImport) await AppBackupService(ref).importFullBackupFromClipboard();
+                        }),
+                    child: const Text('Импорт всего приложения из буфера'),
+                  ),
+                ],
+                child: const Text('Полный импорт / экспорт'),
               ),
               const PopupMenuDivider(),
               MenuItemButton(

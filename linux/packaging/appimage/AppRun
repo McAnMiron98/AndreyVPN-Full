@@ -19,8 +19,8 @@ install_integration() {
         REAL_HOME="$HOME"
     fi
 
-    APP_NAME="andreyvpn"
-    TARGET_DESKTOP="$REAL_HOME/.local/share/applications/andreyvpn.desktop"
+    APP_NAME="hiddify"
+    TARGET_DESKTOP="$REAL_HOME/.local/share/applications/hiddify.desktop"
     LOCAL_HICOLOR="$REAL_HOME/.local/share/icons/hicolor"
     
     if [ ! -f "$LOCAL_HICOLOR/index.theme" ]; then
@@ -32,18 +32,18 @@ install_integration() {
         fi
     fi
 
-    if [[ -f "./andreyvpn.png" ]]; then
+    if [[ -f "./hiddify.png" ]]; then
 
         mkdir -p "$LOCAL_HICOLOR/128x128/apps"
-        cp "./andreyvpn.png" "$LOCAL_HICOLOR/128x128/apps/andreyvpn.png"
+        cp "./hiddify.png" "$LOCAL_HICOLOR/128x128/apps/hiddify.png"
         
         mkdir -p "$LOCAL_HICOLOR/256x256/apps"
-        cp "./andreyvpn.png" "$LOCAL_HICOLOR/256x256/apps/andreyvpn.png"
+        cp "./hiddify.png" "$LOCAL_HICOLOR/256x256/apps/hiddify.png"
         
         gtk-update-icon-cache -f -t "$LOCAL_HICOLOR" 2>/dev/null || true
     fi
 
-    if [ -f "/usr/share/applications/andreyvpn.desktop" ]; then
+    if [ -f "/usr/share/applications/hiddify.desktop" ]; then
         return
     fi
 
@@ -52,11 +52,11 @@ install_integration() {
     cat > "$TARGET_DESKTOP" <<EOF
 [Desktop Entry]
 Type=Application
-Name=AndreyVPN
+Name=Hiddify
 Exec="$APPIMAGE"
-Icon=andreyvpn
+Icon=hiddify
 Terminal=false
-StartupWMClass=app.andreyvpn.com
+StartupWMClass=app.hiddify.com
 EOF
 
     chmod +x "$TARGET_DESKTOP"
@@ -67,12 +67,12 @@ EOF
 show_help() {
 cat << EOF
 Usage: ${0##*/} ...
-start AndreyVPN or AndreyVPNCli, when no parameter is given, AndreyVPN is executed.
+start Hiddify or HiddifyCli, when no parameter is given, Hiddify is executed.
     -v              show version
 EOF
 }
 show_version() {
-    printf "AndreyVPN version "
+    printf "Hiddify version "
     jq .version <./data/flutter_assets/version.json
 }
 # Initialize variables:
@@ -82,17 +82,17 @@ OPTIND=1
 # Resetting OPTIND is necessary if getopts was used previously in the script.
 # It is a good idea to make OPTIND local if you process options in a function.
 
-# if no arg is provided, execute andreyvpn app
+# if no arg is provided, execute hiddify app
 if [[ $# == 0 ]];then 
     install_integration
-    exec ./andreyvpn
+    exec ./hiddify
 else
 
 # processing arguments
 
     case $1 in
-        AndreyVPNCli)  
-            exec ./AndreyVPNCli ${@:3}
+        HiddifyCli)  
+            exec ./HiddifyCli ${@:3}
             exit 0
             ;;
         h)

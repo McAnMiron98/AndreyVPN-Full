@@ -23,7 +23,7 @@
 
 * Set ir flag to shir. 
 
-* Update linux-appimage-release to copy instead of move AndreyVPN.AppImage. 
+* Update linux-appimage-release to copy instead of move Hiddify.AppImage. 
 
 * Update linux-prepare target to use linux-amd64-libs. 
 
@@ -168,7 +168,7 @@
 
 * Add up/down and active profile in android notification. 
 
-* Add AndreyVPNRPC in android. 
+* Add HiddifyRPC in android. 
 
 * Add extra security mode. 
 
@@ -186,7 +186,7 @@
 
 * Upgrade flutter and libs. 
 
-* Add quick setting, organize settings, fix reconnect bug, remove profile tab in mobile, use andreyvpnnextx forfetch profile in xray mode, update flutter. 
+* Add quick setting, organize settings, fix reconnect bug, remove profile tab in mobile, use hiddifynextx forfetch profile in xray mode, update flutter. 
 
 * Refactor configs to better visualisation. 
 
@@ -359,7 +359,7 @@
 
 * If: REQUIRED_VER in Makefile. 
 
-* Update: andreyvpn-core.diff. 
+* Update: hiddify-core.diff. 
 
 * Generate: proto files. 
 
@@ -424,7 +424,7 @@
 
 * Upgrade Flutter and SDK versions; update NDK and Kotlin plugin versions; refresh package dependencies in pubspec.lock. 
 
-* Added 'AndreyVPN Dev Windows Portable' config to launch.json for easier testing and development of the Windows Portable version. 
+* Added 'Hiddify Dev Windows Portable' config to launch.json for easier testing and development of the Windows Portable version. 
 
 * Migrate release builds to fastforge and overhaul Linux/Docker systems. 
   _This major update migrates all release pipelines (except macOS/iOS) to fastforge and completely overhauls the Linux build process.
@@ -446,7 +446,7 @@
   - Manually constructs the AppImage directory structure.
   - Injects a custom `AppRun` script.
   - Implements a self-contained portable data structure:
-    - Creates `andreyvpn.appimage.home` directory alongside the AppImage.
+    - Creates `hiddify.appimage.home` directory alongside the AppImage.
     - Stores configuration and user data within this directory to keep the system clean.
 
 ### Dockerized Build System
@@ -464,7 +464,7 @@
 - Introduced `REQUIRED_VER` variable to extract Flutter version from `pubspec.yaml`.
 - Added `linux-flutter-sync` command to ensure the installed Flutter version matches `pubspec.yaml`._
 
-* - Update getDatabaseDirectory to support portable mode based on the `` env var. - Create 'andreyvpn_portable_data' in the app directory if running in portable mode. - Add 'checkDirectoryAccess' to verify read/write permissions for the portable data folder. - Fallback to the default system path if write access to the portable directory is denied. 
+* - Update getDatabaseDirectory to support portable mode based on the `` env var. - Create 'hiddify_portable_data' in the app directory if running in portable mode. - Add 'checkDirectoryAccess' to verify read/write permissions for the portable data folder. - Fallback to the default system path if write access to the portable directory is denied. 
 
 * - Add  environment variable to identify the Windows portable version - This variable is set during the 'windows-release-zip' build process. 
 
@@ -486,13 +486,13 @@
 
 * Update AppImage configuration in make_config.yaml - Remove app_run_file parameter (AppRun is now injected post-build) - Fix icon path - Update AppRun: Add install_integration to setup icons and create local .desktop entry with correct Exec path - Ensure index.theme creation if missing. 
 
-* Update deb configuration in make_config.yaml - Add comments for supported_mime_type parameter - Add user data cleanup script to postuninstall_scripts - Update postinstall_scripts to set StartupWMClass to app.andreyvpn.com and remove conflicting andreyvpn.desktop from .local. 
+* Update deb configuration in make_config.yaml - Add comments for supported_mime_type parameter - Add user data cleanup script to postuninstall_scripts - Update postinstall_scripts to set StartupWMClass to app.hiddify.com and remove conflicting hiddify.desktop from .local. 
 
 * We decided to remove RPM packaging for the following reasons: - Flutter officially supports Debian-based systems only. - Persistent issues with dependency linking. - High maintenance overhead (requires Fedora environment setup). - Successful builds do not guarantee runtime stability on Red Hat-based systems. 
 
 * Update MSIX config in make_config.yaml - Complete the list of supported languages - Add commented-out parameters for self-signed certificate. 
 
-* Update exe configuration in make_config.yaml - Update publisher_url from andreyvpn-next to andreyvpn-app - Fix app_icon.ico path - Complete list of setup locales - Remove redundant 'executable_name' and 'output_base_file_name' parameters. 
+* Update exe configuration in make_config.yaml - Update publisher_url from hiddify-next to hiddify-app - Fix app_icon.ico path - Complete list of setup locales - Remove redundant 'executable_name' and 'output_base_file_name' parameters. 
 
 * Synchronizing main_prod.dart with main.dart. 
 
@@ -602,7 +602,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Update workflow. 
 
-* Merge branch 'new-design-v2' of ssh://github.com/andreyvpn/andreyvpn-next-ios into new-design-v2. 
+* Merge branch 'new-design-v2' of ssh://github.com/hiddify/hiddify-next-ios into new-design-v2. 
 
 * Merge pull request #26 from veto9292/fix/reported-issues. 
   _Fix/reported issues_
@@ -739,7 +739,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Updation en, fa translations Adding title, dialogTitle, msg to settings.network.share. 
 
-* Merge branch 'fix/reported-issues' of https://github.com/veto9292/andreyvpn-next-ios into fix/reported-issues. 
+* Merge branch 'fix/reported-issues' of https://github.com/veto9292/hiddify-next-ios into fix/reported-issues. 
 
 * Suggesting auto selection apps when changing region. 
 
@@ -768,16 +768,16 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Better log page, upgrade to flutter 3.32.4. 
 
-* Merge branch 'new-design-v2' of ssh://github.com/andreyvpn/andreyvpn-next-ios into new-design-v2. 
+* Merge branch 'new-design-v2' of ssh://github.com/hiddify/hiddify-next-ios into new-design-v2. 
 
 * Merge pull request #24 from veto9292/fix/reported-issues. 
   _Fix/reported issues_
 
 * Merge. 
 
-* Merge branch 'new-design-v2' of ssh://github.com/andreyvpn/andreyvpn-next-ios into new-design-v2. 
+* Merge branch 'new-design-v2' of ssh://github.com/hiddify/hiddify-next-ios into new-design-v2. 
 
-* Merge branch 'new-design-v2' of ssh://github.com/andreyvpn/andreyvpn-next-ios into new-design-v2. 
+* Merge branch 'new-design-v2' of ssh://github.com/hiddify/hiddify-next-ios into new-design-v2. 
 
 * Update flutter. 
 
@@ -1084,7 +1084,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Change default connection test url to apple. 
 
-* Merge branch 'new-design-v2' of https://github.com/andreyvpn/andreyvpn-next-ios into new-design-v2. 
+* Merge branch 'new-design-v2' of https://github.com/hiddify/hiddify-next-ios into new-design-v2. 
 
 * Merge pull request #20 from veto9292/fix/reported-issues. 
   _Fix/reported issues_
@@ -1129,7 +1129,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Add profilename in start. 
 
-* Merge branch 'new-design-v2' of https://github.com/andreyvpn/andreyvpn-next-ios into new-design-v2. 
+* Merge branch 'new-design-v2' of https://github.com/hiddify/hiddify-next-ios into new-design-v2. 
 
 * Merge pull request #19 from veto9292/fix/reported-issues. 
   _Fix/reported issues_
@@ -1160,7 +1160,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Improve windows luncher. 
 
-* Merge branch 'new-design-v2' of https://github.com/andreyvpn/andreyvpn-next-ios into new-design-v2. 
+* Merge branch 'new-design-v2' of https://github.com/hiddify/hiddify-next-ios into new-design-v2. 
 
 * Merge pull request #18 from veto9292/fix/reported-issues. 
   _Fix/reported issues_
@@ -1179,7 +1179,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Fix macos. 
 
-* Merge branch 'new-design-v2' of https://github.com/andreyvpn/andreyvpn-next-ios into new-design-v2. 
+* Merge branch 'new-design-v2' of https://github.com/hiddify/hiddify-next-ios into new-design-v2. 
 
 * Merge pull request #17 from veto9292/fix/reported-issues2. 
   _Fix/reported issues2_
@@ -1472,7 +1472,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 <a href="https://next.ossinsight.io/widgets/official/analyze-repo-stars-history?repo_id=643504282" target="_blank" style="display: block" align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://next.ossinsight.io/widgets/official/analyze-repo-stars-history/thumbnail.png?repo_id=643504282&image_size=auto&color_scheme=dark" width="721" height="auto">
-    <img alt="Star History of andreyvpn/andreyvpn-app" src="https://next.ossinsight.io/widgets/official/analyze-repo-stars-history/thumbnail.png?repo_id=643504282&image_size=auto&color_scheme=light" width="721" height="auto">
+    <img alt="Star History of hiddify/hiddify-app" src="https://next.ossinsight.io/widgets/official/analyze-repo-stars-history/thumbnail.png?repo_id=643504282&image_size=auto&color_scheme=light" width="721" height="auto">
   </picture>
 </a>
 
@@ -1613,9 +1613,9 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 #### Other
 
-* Merge branch 'main' of https://github.com/andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of https://github.com/hiddify/hiddify-next. 
 
-* Change name to andreyvpnpackettunnel. 
+* Change name to hiddifypackettunnel. 
 
 * Fix android build issue. 
 
@@ -1933,7 +1933,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Enable resolve-destination and ipv6 by default. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Merge pull request #1108 from SonzaiEkkusu/main. 
   _Update Translations for Region Indonesia (id)_
@@ -1946,7 +1946,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Better xray support. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Merge pull request #1106 from amirsaam/main. 
   _General iOS Maintain_
@@ -1967,7 +1967,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 #### Other
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Merge pull request #1084 from MR-TZ-dev/fix/linuxLaunchFix. 
   _fix: fixed problem not launching on Ubuntu 24.04 LTS._
@@ -2078,7 +2078,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 * Merge pull request #1043 from nidghogg/main. 
   _Fixed camera permission handling for QR_
 
-* Merge branch 'main' of https://github.com/nidghogg/andreyvpn-next. 
+* Merge branch 'main' of https://github.com/nidghogg/hiddify-next. 
 
 * Fixed Camera permission handling for QR. 
 
@@ -2096,7 +2096,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Fix intro page buug. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Merge pull request #1004 from Kianmehrgit/main. 
   _Update translations_
@@ -2402,7 +2402,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 #### Other
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Merge pull request #696 from HSSkyBoy/main. 
   _Update translations (zh_TW and zh_CN)_
@@ -2520,7 +2520,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Fix postServiceClose implementation. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Fink 🐦: update translations. 
 
@@ -2530,7 +2530,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Resolve qr code permssion issue. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Merge pull request #668 from alikhabazian/newyear. 
   _add image field to ConnectionButton_
@@ -2576,7 +2576,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Inlang/manage: remove languageTag pt-BR. 
 
-* Merge branch 'andreyvpn:main' into main. 
+* Merge branch 'hiddify:main' into main. 
 
 * Fink 🐦: update translations. 
 
@@ -2598,7 +2598,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Add Indonesian language. 
 
-* Add andreyvpncli and resolve all false positve from anti virus, auto exit during installation. 
+* Add hiddifycli and resolve all false positve from anti virus, auto exit during installation. 
 
 * Add support for flag emoji in proxy names. 
 
@@ -2687,7 +2687,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Update download paths in release page. 
 
-* Logo, add name for andreyvpn warp sub. 
+* Logo, add name for hiddify warp sub. 
 
 #### Other
 
@@ -2705,7 +2705,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Disable redundent action run for release. 
 
-* Merge pull request #647 from andreyvpn/ios. 
+* Merge pull request #647 from hiddify/ios. 
   _Ios_
 
 * Upload versioned. 
@@ -2995,7 +2995,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Add indonesian translation. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Fix qr code scanner. 
 
@@ -3003,7 +3003,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Change experimental feature notice. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Change sidebar stats. 
 
@@ -3071,10 +3071,10 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Update msix. 
 
-* Merge pull request #577 from Aryangh1379/AndreyVPN-develop. 
+* Merge pull request #577 from Aryangh1379/Hiddify-develop. 
 
-* Merge pull request #572 from Aryangh1379/AndreyVPN-develop. 
-  _AndreyVPN develop_
+* Merge pull request #572 from Aryangh1379/Hiddify-develop. 
+  _Hiddify develop_
 
 * Forgot to remove -x from !#/bin/bash :) 
 
@@ -3107,7 +3107,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Adding a README in Portuguese. 
 
-* Merge pull request #556 from Aryangh1379/AndreyVPN-develop. 
+* Merge pull request #556 from Aryangh1379/Hiddify-develop. 
   _AppRun file error fixed. AppImage now is usable_
 
 * AppRun file error fixed. AppImage now is usable. 
@@ -3283,7 +3283,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 #### Changes
 
-* Change name to AndreyVPN. 
+* Change name to Hiddify. 
 
 #### Fix
 
@@ -3464,11 +3464,11 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Change make flags. 
 
-* Change the name of tunnel service to AndreyVPNService. 
+* Change the name of tunnel service to HiddifyService. 
 
 * Make makefile cross platform. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Add cloudflare warp options. 
 
@@ -3480,7 +3480,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Disable tunnel service for mac. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Remove unnecessary dependencies. 
 
@@ -3494,7 +3494,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Send panic to sentry. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Merge pull request #371 from eltociear/add_ja-readme. 
   _Add Japanese README_
@@ -3536,7 +3536,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Refactor makefile. 
 
-* Update AndreyVPN Packages. 
+* Update Hiddify Packages. 
 
 * Update README_ru.md. 
 
@@ -3656,9 +3656,9 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 * Merge pull request #344 from amirsaam/main. 
   _switch to local spm to load libcore_
 
-* Merge branch 'main' of https://github.com/amirsaam/andreyvpn-next. 
+* Merge branch 'main' of https://github.com/amirsaam/hiddify-next. 
 
-* Merge branch 'andreyvpn:main' into main. 
+* Merge branch 'hiddify:main' into main. 
 
 * Remove tvOS in singbox target. 
 
@@ -3672,12 +3672,12 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Bumpcore version to v0.11. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Merge pull request #343 from amirsaam/main. 
   _url scheme +  target dependency + general update_
 
-* Merge branch 'andreyvpn:main' into main. 
+* Merge branch 'hiddify:main' into main. 
 
 * Add url scheme. 
 
@@ -3685,12 +3685,12 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Target dependancy + pod update, package resolve. 
 
-* Remove andreyvpn://import/ from export option. 
+* Remove hiddify://import/ from export option. 
 
 * Merge pull request #342 from amirsaam/main. 
   _getting libcore from spm, adding landscape mode_
 
-* Merge branch 'main' of https://github.com/amirsaam/andreyvpn-next. 
+* Merge branch 'main' of https://github.com/amirsaam/hiddify-next. 
 
 * Delete pubspec.lock. 
 
@@ -3728,7 +3728,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 * Merge pull request #338 from amirsaam/main. 
   _add push notification entitlement_
 
-* Merge branch 'main' of https://github.com/amirsaam/andreyvpn-next. 
+* Merge branch 'main' of https://github.com/amirsaam/hiddify-next. 
 
 * Add config export on ios. 
 
@@ -3828,7 +3828,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Update. 
 
-* Merge branch 'main' of https://github.com/andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of https://github.com/hiddify/hiddify-next. 
 
 * Update appcast. 
 
@@ -3840,7 +3840,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Fix build. 
 
-* Merge branch 'main' of https://github.com/andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of https://github.com/hiddify/hiddify-next. 
 
 * Fix qr scanner links. 
 
@@ -3977,7 +3977,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Update ios. 
 
-* Merge branch 'main' of https://github.com/andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of https://github.com/hiddify/hiddify-next. 
 
 * Ios update. 
 
@@ -4035,7 +4035,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 #### Other
 
-* Add andreyvpn/iimport schema. 
+* Add hiddify/iimport schema. 
 
 * Fix chinese inlang url. 
 
@@ -4125,7 +4125,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Update ios. 
 
-* Merge branch 'main' of https://github.com/andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of https://github.com/hiddify/hiddify-next. 
 
 * Fix build. 
 
@@ -4137,7 +4137,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Update platform interface. 
 
-* Merge branch 'main' of https://github.com/andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of https://github.com/hiddify/hiddify-next. 
 
 * Update dev-i.yml. 
 
@@ -4163,7 +4163,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Update core (singbox 1.7.0-rc.2) 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Refactor router. 
 
@@ -4443,7 +4443,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Update README.md. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Merge pull request #138 from huajizhige/main. 
   _inlang: update translations_
@@ -4602,7 +4602,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Merge branch 'main' into ios. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Merge pull request #95 from solokot/main. 
   _Update Russian_
@@ -4644,7 +4644,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Update README_cn.md. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Add inlang translations. 
 
@@ -4679,9 +4679,9 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Initialize Packet Tunnel + Config. 
 
-* Update Tutorial_For_AndreyVPNNext_Linux.desktop. 
+* Update Tutorial_For_HiddifyNext_Linux.desktop. 
 
-* Update Tutorial_For_AndreyVPNNext.url. 
+* Update Tutorial_For_HiddifyNext.url. 
 
 * Update آموزش هیدیفای‌نکست فارسی.url. 
 
@@ -4993,11 +4993,11 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 #### Other
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Update release_message.md. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Update release_message.md. 
 
@@ -5053,7 +5053,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Add release message  and help. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Fix bugs. 
 
@@ -5178,7 +5178,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Add google play descriptions. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 
 
@@ -5236,7 +5236,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Add retry for network ops. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Add local profile. 
 
@@ -5394,7 +5394,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Update version of core. 
 
-* Merge branch 'main' of andreyvpn-github:andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of hiddify-github:hiddify/hiddify-next. 
 
 * Add firebase. 
 
@@ -5410,7 +5410,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Update. 
 
-* Merge branch 'main' of https://github.com/andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of https://github.com/hiddify/hiddify-next. 
 
 * Improve accessability. 
 
@@ -5650,7 +5650,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Add status command receiver. 
 
-* Add andreyvpn deeplink. 
+* Add hiddify deeplink. 
 
 * Add macos deeplink support. 
 
@@ -5690,7 +5690,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Add aab file. 
 
-* Change windows-portable name to AndreyVPNNext-portable. 
+* Change windows-portable name to HiddifyNext-portable. 
 
 * Add debug mode. 
 
@@ -5704,7 +5704,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Fix linux build. 
 
-* Merge branch 'main' of https://github.com/andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of https://github.com/hiddify/hiddify-next. 
 
 * Fix android builds. 
 
@@ -5875,7 +5875,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Update build setup. 
 
-* Merge branch 'main' of https://github.com/andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of https://github.com/hiddify/hiddify-next. 
 
 * Create LICENSE.md. 
 
@@ -5891,7 +5891,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Update make. 
 
-* Merge branch 'main' of https://github.com/andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of https://github.com/hiddify/hiddify-next. 
 
 * Add Persian font. 
 
@@ -5925,7 +5925,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Fix CI. 
 
-* Merge branch 'main' of https://github.com/andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of https://github.com/hiddify/hiddify-next. 
 
 * Update ci.yml. 
 
@@ -5951,7 +5951,7 @@ from version 3.32.5 to 3.35.4 and resolve version solving failures._
 
 * Add Farsi(fa) language. 
 
-* Merge branch 'main' of https://github.com/andreyvpn/andreyvpn-next. 
+* Merge branch 'main' of https://github.com/hiddify/hiddify-next. 
 
 * Initial commit. 
 

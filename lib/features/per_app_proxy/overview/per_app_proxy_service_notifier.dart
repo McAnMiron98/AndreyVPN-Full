@@ -1,11 +1,11 @@
 import 'dart:async';
 
-import 'package:andreyvpn/core/localization/translations.dart';
-import 'package:andreyvpn/core/notification/in_app_notification_controller.dart';
-import 'package:andreyvpn/core/preferences/general_preferences.dart';
-import 'package:andreyvpn/features/per_app_proxy/data/selected_data_provider.dart';
-import 'package:andreyvpn/features/per_app_proxy/model/per_app_proxy_mode.dart';
-import 'package:andreyvpn/features/per_app_proxy/overview/per_app_proxy_notifier.dart';
+import 'package:hiddify/core/localization/translations.dart';
+import 'package:hiddify/core/notification/in_app_notification_controller.dart';
+import 'package:hiddify/core/preferences/general_preferences.dart';
+import 'package:hiddify/features/per_app_proxy/data/selected_data_provider.dart';
+import 'package:hiddify/features/per_app_proxy/model/per_app_proxy_mode.dart';
+import 'package:hiddify/features/per_app_proxy/overview/per_app_proxy_notifier.dart';
 import 'package:installed_apps/index.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 

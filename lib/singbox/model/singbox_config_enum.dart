@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:andreyvpn/core/localization/translations.dart';
-import 'package:andreyvpn/utils/platform_utils.dart';
+import 'package:hiddify/core/localization/translations.dart';
+import 'package:hiddify/utils/platform_utils.dart';
 
 @JsonEnum(valueField: 'key')
 enum ServiceMode {

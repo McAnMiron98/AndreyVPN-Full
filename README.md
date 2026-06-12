@@ -1,6 +1,6 @@
 # AndreyVPN
 
-Custom Windows VPN client based on the AndreyVPN open-source project.
+Custom Windows VPN client based on the Hiddify open-source project.
 
 ## Current version
 
@@ -16,4 +16,4 @@ Portable builds are distributed through GitHub Releases. The application can che
 
 ## Notes
 
-Some internal package names and core binary names may still contain `andreyvpn` because they are part of the upstream codebase and VPN core integration. They are intentionally left unchanged to avoid breaking the build.
+Some internal package names and core binary names may still contain `hiddify` because they are part of the upstream codebase and VPN core integration. They are intentionally left unchanged to avoid breaking the build.

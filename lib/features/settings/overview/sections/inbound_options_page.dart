@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:andreyvpn/core/localization/translations.dart';
-import 'package:andreyvpn/core/router/dialog/dialog_notifier.dart';
-import 'package:andreyvpn/features/settings/data/config_option_repository.dart';
-import 'package:andreyvpn/features/settings/widget/preference_tile.dart';
-import 'package:andreyvpn/singbox/model/singbox_config_enum.dart';
-import 'package:andreyvpn/utils/utils.dart';
+import 'package:hiddify/core/localization/translations.dart';
+import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
+import 'package:hiddify/features/settings/data/config_option_repository.dart';
+import 'package:hiddify/features/settings/widget/preference_tile.dart';
+import 'package:hiddify/singbox/model/singbox_config_enum.dart';
+import 'package:hiddify/utils/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 

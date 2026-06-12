@@ -2,16 +2,16 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
-import 'package:andreyvpn/core/app_info/app_info_provider.dart';
-import 'package:andreyvpn/core/directories/directories_provider.dart';
-import 'package:andreyvpn/core/localization/translations.dart';
-import 'package:andreyvpn/core/model/constants.dart';
-import 'package:andreyvpn/core/router/dialog/dialog_notifier.dart';
-import 'package:andreyvpn/features/app_update/notifier/app_update_notifier.dart';
-import 'package:andreyvpn/features/app_update/notifier/app_update_state.dart';
-import 'package:andreyvpn/core/widget/adaptive_icon.dart';
-import 'package:andreyvpn/gen/assets.gen.dart';
-import 'package:andreyvpn/utils/utils.dart';
+import 'package:hiddify/core/app_info/app_info_provider.dart';
+import 'package:hiddify/core/directories/directories_provider.dart';
+import 'package:hiddify/core/localization/translations.dart';
+import 'package:hiddify/core/model/constants.dart';
+import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
+import 'package:hiddify/features/app_update/notifier/app_update_notifier.dart';
+import 'package:hiddify/features/app_update/notifier/app_update_state.dart';
+import 'package:hiddify/core/widget/adaptive_icon.dart';
+import 'package:hiddify/gen/assets.gen.dart';
+import 'package:hiddify/utils/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class AboutPage extends HookConsumerWidget {

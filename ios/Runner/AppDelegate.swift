@@ -1,6 +1,6 @@
 import UIKit
 import Flutter
-import AndreyVPNCore
+import HiddifyCore
 import Sentry
 @main
 @objc class AppDelegate: FlutterAppDelegate {

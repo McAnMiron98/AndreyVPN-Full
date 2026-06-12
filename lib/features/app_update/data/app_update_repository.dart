@@ -1,12 +1,12 @@
 import 'package:fpdart/fpdart.dart';
-import 'package:andreyvpn/core/http_client/dio_http_client.dart';
-import 'package:andreyvpn/core/model/constants.dart';
-import 'package:andreyvpn/core/model/environment.dart';
-import 'package:andreyvpn/core/utils/exception_handler.dart';
-import 'package:andreyvpn/features/app_update/data/github_release_parser.dart';
-import 'package:andreyvpn/features/app_update/model/app_update_failure.dart';
-import 'package:andreyvpn/features/app_update/model/remote_version_entity.dart';
-import 'package:andreyvpn/utils/utils.dart';
+import 'package:hiddify/core/http_client/dio_http_client.dart';
+import 'package:hiddify/core/model/constants.dart';
+import 'package:hiddify/core/model/environment.dart';
+import 'package:hiddify/core/utils/exception_handler.dart';
+import 'package:hiddify/features/app_update/data/github_release_parser.dart';
+import 'package:hiddify/features/app_update/model/app_update_failure.dart';
+import 'package:hiddify/features/app_update/model/remote_version_entity.dart';
+import 'package:hiddify/utils/utils.dart';
 
 abstract interface class AppUpdateRepository {
   TaskEither<AppUpdateFailure, RemoteVersionEntity> getLatestVersion({

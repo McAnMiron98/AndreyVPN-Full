@@ -1,6 +1,6 @@
 import Foundation
 import Combine
-import AndreyVPNCore
+import HiddifyCore
 
 class LogsEventHandler: NSObject, FlutterPlugin, FlutterStreamHandler {
     static let name = "\(Bundle.main.serviceIdentifier)/service.logs"
