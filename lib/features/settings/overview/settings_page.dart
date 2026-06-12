@@ -196,6 +196,11 @@ class SettingsPage extends HookConsumerWidget {
             icon: Icons.cloud_rounded,
             namedLocation: context.namedLocation('warpOptions'),
           ),
+          SettingsSection(
+            title: 'Бэкап',
+            icon: Icons.backup_rounded,
+            namedLocation: context.namedLocation('backup'),
+          ),
           if (PlatformUtils.isIOS)
             Material(
               child: ListTile(

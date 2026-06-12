@@ -22,6 +22,7 @@ import 'package:hiddify/features/settings/overview/sections/route_options_page.d
 import 'package:hiddify/features/settings/overview/sections/tls_tricks_page.dart';
 import 'package:hiddify/features/settings/overview/sections/warp_options_page.dart';
 import 'package:hiddify/features/settings/overview/settings_page.dart';
+import 'package:hiddify/features/settings/overview/backup_page.dart';
 import 'package:hiddify/utils/utils.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -32,6 +33,7 @@ final branchesScope = <String, FocusScopeNode>{
   'home': FocusScopeNode(),
   'profiles': FocusScopeNode(),
   'settings': FocusScopeNode(),
+  'backup': FocusScopeNode(),
   'logs': FocusScopeNode(),
   'about': FocusScopeNode(),
 };
@@ -205,6 +207,12 @@ class RoutingConfigNotifier extends _$RoutingConfigNotifier {
                       path: '/warp-options',
                       pageBuilder: (_, state) =>
                           customTransition(TransitionType.slide, state.pageKey, const WarpOptionsPage()),
+                    ),
+                    GoRoute(
+                      name: 'backup',
+                      path: '/backup',
+                      pageBuilder: (_, state) =>
+                          customTransition(TransitionType.slide, state.pageKey, const BackupPage()),
                     ),
                     if (isMobileBreakpoint) ...[
                       GoRoute(
