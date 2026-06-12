@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
 import 'package:hiddify/core/router/go_router/helper/active_breakpoint_notifier.dart';
-import 'package:hiddify/features/backup/full_backup_service.dart';
 import 'package:hiddify/features/settings/notifier/config_option/config_option_notifier.dart';
 import 'package:hiddify/features/settings/notifier/reset_tunnel/reset_tunnel_notifier.dart';
 import 'package:hiddify/utils/utils.dart';
@@ -93,30 +92,6 @@ class SettingsPage extends HookConsumerWidget {
                   ),
                 ],
                 child: Text(t.common.import),
-              ),
-              SubmenuButton(
-                menuChildren: <Widget>[
-                  MenuItemButton(
-                    onPressed: () async => await ref.read(fullBackupServiceProvider).exportFullBackup(),
-                    child: const Text('Экспорт полного бэкапа'),
-                  ),
-                  MenuItemButton(
-                    onPressed: () async => await ref
-                        .read(dialogNotifierProvider.notifier)
-                        .showConfirmation(
-                          title: t.common.msg.import.confirm,
-                          message:
-                              'Будут восстановлены данные приложения из ZIP-бэкапа: настройки, профили, база данных и рабочие файлы. После импорта нужно перезапустить AndreyVPN. Продолжить?',
-                        )
-                        .then((shouldImport) async {
-                          if (shouldImport) {
-                            await ref.read(fullBackupServiceProvider).importFullBackup();
-                          }
-                        }),
-                    child: const Text('Импорт полного бэкапа'),
-                  ),
-                ],
-                child: const Text('Полный бэкап'),
               ),
               SubmenuButton(
                 menuChildren: <Widget>[
