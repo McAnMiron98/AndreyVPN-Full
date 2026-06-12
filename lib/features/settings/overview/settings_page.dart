@@ -5,6 +5,7 @@ import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
 import 'package:hiddify/core/router/go_router/helper/active_breakpoint_notifier.dart';
 import 'package:hiddify/features/settings/notifier/config_option/config_option_notifier.dart';
+import 'package:hiddify/features/settings/notifier/full_backup_notifier.dart';
 import 'package:hiddify/features/settings/notifier/reset_tunnel/reset_tunnel_notifier.dart';
 import 'package:hiddify/utils/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -117,6 +118,30 @@ class SettingsPage extends HookConsumerWidget {
                   ),
                 ],
                 child: Text(t.common.export),
+              ),
+              const PopupMenuDivider(),
+              SubmenuButton(
+                menuChildren: <Widget>[
+                  MenuItemButton(
+                    onPressed: () async => await ref.read(fullBackupNotifierProvider).exportFullBackup(),
+                    child: const Text('Экспорт полного бэкапа'),
+                  ),
+                  MenuItemButton(
+                    onPressed: () async => await ref
+                        .read(dialogNotifierProvider.notifier)
+                        .showConfirmation(
+                          title: 'Импорт полного бэкапа',
+                          message: 'Текущие данные приложения будут заменены данными из бэкапа. После импорта перезапустите приложение.',
+                        )
+                        .then((shouldImport) async {
+                          if (shouldImport) {
+                            await ref.read(fullBackupNotifierProvider).importFullBackup();
+                          }
+                        }),
+                    child: const Text('Импорт полного бэкапа'),
+                  ),
+                ],
+                child: const Text('Полный бэкап'),
               ),
               const PopupMenuDivider(),
               MenuItemButton(
