@@ -37,6 +37,7 @@ dependencies:
   dio: ^5.4.1
   ffi: ^2.1.2
   path_provider: ^2.1.1
+  archive: ^4.0.4
   mobile_scanner: ^7.2.0
   # protocol_handler: ^0.2.0
   flutter_native_splash: ^2.3.10
