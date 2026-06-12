@@ -105,15 +105,15 @@ class FullBackupNotifier with AppLogger {
 
       final archivePath = p.join(tempRoot.path, _defaultBackupFileName());
       diag('creating zip: $archivePath');
-      final encoder = ZipFileEncoder();
-      encoder.create(archivePath);
-      encoder.addDirectory(stagingDir, includeDirName: false);
-      encoder.close();
+      final zipEntryCount = await _createZipFromDirectory(stagingDir, File(archivePath), diagnostics);
 
       final archiveFile = File(archivePath);
       final archiveSize = await archiveFile.length();
       diag('zip created, size bytes: $archiveSize');
+      diag('zip entries written: $zipEntryCount');
       final backupBytes = await archiveFile.readAsBytes();
+      final decodedArchive = ZipDecoder().decodeBytes(backupBytes);
+      diag('zip entries decoded after creation: ${decodedArchive.files.length}');
       final outputFile = await FilePicker.platform.saveFile(
         fileName: _defaultBackupFileName(),
         type: FileType.custom,
@@ -246,6 +246,46 @@ class FullBackupNotifier with AppLogger {
     }
 
     return copied;
+  }
+
+
+  Future<int> _createZipFromDirectory(
+    Directory source,
+    File destination,
+    StringBuffer diagnostics,
+  ) async {
+    if (!await source.exists()) {
+      throw StateError('Backup staging directory does not exist: ${source.path}');
+    }
+
+    final files = await _listFilesRecursive(source);
+    diagnostics.writeln('[${DateTime.now().toIso8601String()}] zip source files discovered: ${files.length}');
+
+    final archive = Archive();
+    for (final file in files) {
+      final relativePath = p.relative(file.path, from: source.path).replaceAll('\\', '/');
+      final bytes = await file.readAsBytes();
+      archive.addFile(ArchiveFile(relativePath, bytes.length, bytes));
+      diagnostics.writeln('[${DateTime.now().toIso8601String()}] zip add file: $relativePath (${bytes.length} bytes)');
+    }
+
+    final zipBytes = ZipEncoder().encode(archive);
+    if (zipBytes == null) {
+      throw StateError('ZIP encoder returned null');
+    }
+
+    await destination.parent.create(recursive: true);
+    await destination.writeAsBytes(zipBytes, flush: true);
+    return files.length;
+  }
+
+  Future<List<File>> _listFilesRecursive(Directory directory) async {
+    final files = <File>[];
+    await for (final entity in directory.list(recursive: true, followLinks: false)) {
+      if (entity is File) files.add(entity);
+    }
+    files.sort((a, b) => a.path.compareTo(b.path));
+    return files;
   }
 
   Future<int> _countFiles(Directory directory) async {
