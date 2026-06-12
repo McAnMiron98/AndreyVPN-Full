@@ -66,6 +66,16 @@ DISTRIBUTOR_ARGS=--skip-clean --build-target $(TARGET) --build-dart-define sentr
 
 
 
+clean-stale-hiddify:
+	@echo "Cleaning stale Hiddify leftovers before code generation..."
+	rm -rf lib/hiddifycore
+	rm -rf test/hiddifycore
+	rm -rf android/app/src/main/kotlin/com/hiddify
+	rm -rf android/app/src/main/aidl/com/hiddify
+	rm -rf ios/Runner/GeneratedPluginRegistrant.hiddify
+	rm -rf .dart_tool/build/generated/*/lib/hiddifycore
+	rm -rf .dart_tool/build/generated/*/test/hiddifycore
+
 get:	
 	flutter pub get
 
@@ -85,7 +95,7 @@ prepare:
 	@echo    make macos-prepare
 	@echo    make ios-prepare
 
-common-prepare:  get gen translate
+common-prepare: clean-stale-hiddify get gen translate
 windows-prepare: common-prepare windows-libs
 	
 ios-prepare: common-prepare ios-libs 
