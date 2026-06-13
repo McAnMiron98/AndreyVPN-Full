@@ -16,37 +16,78 @@ class BackupPage extends HookConsumerWidget {
     return path;
   }
 
-  String _escapePowerShellSingleQuoted(String value) {
-    return value.replaceAll("'", "''");
+  File _restartDiagnosticFile() {
+    final appData = Platform.environment['APPDATA'];
+    if (Platform.isWindows && appData != null && appData.isNotEmpty) {
+      return File('$appData\\AndreyVPN\\AndreyVPN\\andreyvpn_restart_diagnostic.log');
+    }
+    return File('${Directory.systemTemp.path}${Platform.pathSeparator}andreyvpn_restart_diagnostic.log');
+  }
+
+  void _appendRestartLog(String message) {
+    try {
+      final logFile = _restartDiagnosticFile();
+      logFile.parent.createSync(recursive: true);
+      logFile.writeAsStringSync('[${DateTime.now().toIso8601String()}] $message\n', mode: FileMode.append, flush: true);
+    } catch (_) {
+      // Restart logging must never block the restart flow.
+    }
+  }
+
+  String _escapeBat(String value) {
+    return value.replaceAll('%', '%%');
+  }
+
+  String _escapeVbs(String value) {
+    return value.replaceAll('"', '""');
   }
 
   Future<void> _restartApplication() async {
     final executable = Platform.isWindows ? _normalizeWindowsPath(Platform.resolvedExecutable) : Platform.resolvedExecutable;
     final workingDirectory = File(executable).parent.path;
 
+    _appendRestartLog('restart requested');
+    _appendRestartLog('resolved executable: $executable');
+    _appendRestartLog('working directory: $workingDirectory');
+
     if (Platform.isWindows) {
-      // Start the new instance after the current process has time to exit.
-      // Use PowerShell Start-Process instead of cmd/start to avoid malformed
-      // UNC-like paths such as \\?\C:\... and to avoid a visible console window.
-      final psExecutable = _escapePowerShellSingleQuoted(executable);
-      final psWorkingDirectory = _escapePowerShellSingleQuoted(workingDirectory);
-      final command = "Start-Sleep -Milliseconds 900; Start-Process -FilePath '$psExecutable' -WorkingDirectory '$psWorkingDirectory'";
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final helperBat = File('${Directory.systemTemp.path}${Platform.pathSeparator}andreyvpn_restart_$timestamp.bat');
+      final helperVbs = File('${Directory.systemTemp.path}${Platform.pathSeparator}andreyvpn_restart_$timestamp.vbs');
+      final escapedExecutable = _escapeBat(executable);
+      final escapedWorkingDirectory = _escapeBat(workingDirectory);
+      final escapedLogPath = _escapeBat(_restartDiagnosticFile().path);
+
+      final batContent = '@echo off\r\n'
+          'setlocal\r\n'
+          'echo [%DATE% %TIME%] restart helper started >> "$escapedLogPath"\r\n'
+          'timeout /t 2 /nobreak >nul\r\n'
+          'cd /d "$escapedWorkingDirectory"\r\n'
+          'echo [%DATE% %TIME%] launching: $escapedExecutable >> "$escapedLogPath"\r\n'
+          'start "" "$escapedExecutable"\r\n'
+          'echo [%DATE% %TIME%] launch command sent >> "$escapedLogPath"\r\n'
+          '(del "%~f0") >nul 2>nul\r\n';
+      helperBat.writeAsStringSync(batContent, flush: true);
+
+      final vbsContent = 'Set WshShell = CreateObject("WScript.Shell")\r\n'
+          'WshShell.Run """${_escapeVbs(helperBat.path)}""", 0, False\r\n'
+          'Set fso = CreateObject("Scripting.FileSystemObject")\r\n'
+          'WScript.Sleep 500\r\n'
+          'On Error Resume Next\r\n'
+          'fso.DeleteFile "${_escapeVbs(helperVbs.path)}", True\r\n';
+      helperVbs.writeAsStringSync(vbsContent, flush: true);
+
+      _appendRestartLog('restart helper bat created: ${helperBat.path}');
+      _appendRestartLog('restart helper vbs created: ${helperVbs.path}');
 
       await Process.start(
-        'powershell.exe',
-        [
-          '-NoProfile',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-WindowStyle',
-          'Hidden',
-          '-Command',
-          command,
-        ],
+        'wscript.exe',
+        [helperVbs.path],
         mode: ProcessStartMode.detached,
         runInShell: false,
-        workingDirectory: workingDirectory,
+        workingDirectory: Directory.systemTemp.path,
       );
+      _appendRestartLog('restart helper launched via wscript');
     } else {
       await Process.start(
         executable,
@@ -55,9 +96,11 @@ class BackupPage extends HookConsumerWidget {
         runInShell: false,
         workingDirectory: workingDirectory,
       );
+      _appendRestartLog('non-windows restart process launched');
     }
 
-    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    _appendRestartLog('exiting current process');
     exit(0);
   }
 
