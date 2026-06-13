@@ -31,14 +31,14 @@ class CoreInterfaceDesktop extends CoreInterface with InfraLogger {
       fullPath = "hiddify-core";
     }
     if (Platform.isWindows) {
-      fullPath = p.join(fullPath, "hiddify-core.dll");
+      fullPath = p.join(fullPath, "andrey-core.dll");
     } else if (Platform.isMacOS) {
       fullPath = p.join(fullPath, "hiddify-core.dylib");
     } else {
       fullPath = p.join(fullPath, "hiddify-core.so");
     }
 
-    _logger.debug('hiddify-core native libs path: "$fullPath"');
+    _logger.debug('Andrey core native libs path: "$fullPath"');
     final lib = DynamicLibrary.open(fullPath);
     // final stopFunc = lib.lookup<NativeFunction<StopFunc>>('stop').asFunction<StopFunc>();
     // final errPtr2 = stopFunc();
