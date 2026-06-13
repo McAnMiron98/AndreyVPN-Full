@@ -48,7 +48,7 @@ class FullBackupNotifier with AppLogger {
 
       final manifest = <String, dynamic>{
         'app': 'AndreyVPN',
-        'appVersion': '0.8.9+49',
+        'appVersion': '0.8.10+50',
         'type': 'full_backup',
         'format': 2,
         'diagnostic': true,
@@ -409,16 +409,45 @@ class FullBackupNotifier with AppLogger {
           label: label == null ? name : '$label/$name',
         );
       } else if (entity is File) {
-        await File(newPath).parent.create(recursive: true);
-        await entity.copy(newPath);
+        await _copyFileWithOverwrite(
+          entity,
+          File(newPath),
+          diagnostics: diagnostics,
+          label: label ?? source.path,
+        );
         copied++;
-        diag('${label ?? source.path}: copied file: ${entity.path} -> $newPath');
       } else {
         diag('${label ?? source.path}: ignored non-file entity: ${entity.path}');
       }
     }
 
     return copied;
+  }
+
+
+  Future<void> _copyFileWithOverwrite(
+    File source,
+    File destination, {
+    StringBuffer? diagnostics,
+    String? label,
+  }) async {
+    void diag(String message) {
+      diagnostics?.writeln('[${DateTime.now().toIso8601String()}] $message');
+    }
+
+    await destination.parent.create(recursive: true);
+
+    if (await destination.exists()) {
+      final oldSize = await destination.length();
+      diag('${label ?? source.path}: overwriting existing file: ${destination.path} (old size bytes: $oldSize)');
+      await destination.delete();
+    } else {
+      diag('${label ?? source.path}: target file does not exist, creating: ${destination.path}');
+    }
+
+    await source.copy(destination.path);
+    final newSize = await destination.length();
+    diag('${label ?? source.path}: copied file: ${source.path} -> ${destination.path} (new size bytes: $newSize)');
   }
 
 
