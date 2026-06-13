@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:hiddify/core/directories/directories_provider.dart';
-import 'package:hiddify/core/model/environment.dart';
 import 'package:hiddify/utils/platform_utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:loggy/loggy.dart';
@@ -11,6 +10,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
 
 part 'preferences_provider.g.dart';
 
@@ -22,14 +22,13 @@ Future<SharedPreferences> sharedPreferences(Ref ref) async {
   logger.debug("initializing preferences");
   try {
     if (PlatformUtils.isWindows) {
-      await _preparePortablePreferencesBeforeInitialization();
+      await _installPortablePreferencesStore();
     }
-    if (PlatformUtils.isWindows && Environment.isPortable) SharedPreferences.setPrefix('portable.');
     sharedPreferences = await SharedPreferences.getInstance();
     if (PlatformUtils.isWindows) {
       await _mirrorPreferencesToPortable(sharedPreferences);
       await _cleanupLegacyAppDataArtifacts();
-      unawaited(_delayedPortablePreferencesCleanup(sharedPreferences));
+      unawaited(_delayedPortablePreferencesSync(sharedPreferences));
     }
   } catch (e) {
     logger.error("error initializing preferences", e);
@@ -48,19 +47,19 @@ Future<SharedPreferences> sharedPreferences(Ref ref) async {
 
   if (sharedPreferences == null) {
     if (PlatformUtils.isWindows) {
-      await _preparePortablePreferencesBeforeInitialization();
+      await _installPortablePreferencesStore();
     }
     sharedPreferences = await SharedPreferences.getInstance();
   }
   if (PlatformUtils.isWindows) {
     await _mirrorPreferencesToPortable(sharedPreferences);
     await _cleanupLegacyAppDataArtifacts();
-    unawaited(_delayedPortablePreferencesCleanup(sharedPreferences));
+    unawaited(_delayedPortablePreferencesSync(sharedPreferences));
   }
   return sharedPreferences;
 }
 
-Future<void> _preparePortablePreferencesBeforeInitialization() async {
+Future<void> _installPortablePreferencesStore() async {
   try {
     if (!PlatformUtils.isWindows) return;
 
@@ -73,32 +72,90 @@ Future<void> _preparePortablePreferencesBeforeInitialization() async {
     final legacyFile = await _legacyPreferencesFile();
 
     await _writePreferencesDiagnostic(
-      'prepare start; portable exists=${await portableFile.exists()}; legacy exists=${legacyFile != null && await legacyFile.exists()}',
+      'install portable store; portable=${portableFile.path}; portable exists=${await portableFile.exists()}; legacy=${legacyFile?.path}; legacy exists=${legacyFile != null && await legacyFile.exists()}',
     );
 
-    if (legacyFile == null) return;
+    await _normalizePortablePreferencesFile(portableFile, legacyFile);
 
-    if (!await legacyFile.parent.exists()) {
-      await legacyFile.parent.create(recursive: true);
-    }
-
-    if (await portableFile.exists()) {
-      // shared_preferences_windows still reads from AppData. Seed that file from
-      // the portable copy before SharedPreferences.getInstance() is called so
-      // the intro/analytics flags are available immediately on startup.
-      await portableFile.copy(legacyFile.path);
-      await _writePreferencesDiagnostic('seeded legacy preferences from portable: ${legacyFile.path}');
-      return;
-    }
-
-    if (await legacyFile.exists()) {
-      await legacyFile.copy(portableFile.path);
-      await _writePreferencesDiagnostic('created portable preferences from existing legacy file: ${portableFile.path}');
-    }
+    SharedPreferencesStorePlatform.instance = _PortableJsonSharedPreferencesStore(portableFile);
+    await _writePreferencesDiagnostic('portable preferences store installed: ${portableFile.path}');
   } catch (e) {
-    await _writePreferencesDiagnostic('prepare error: $e');
+    await _writePreferencesDiagnostic('portable store install error: $e');
     // Preferences preparation must never block startup.
   }
+}
+
+Future<void> _normalizePortablePreferencesFile(File portableFile, File? legacyFile) async {
+  try {
+    Map<String, Object?> portableValues = const <String, Object?>{};
+    Map<String, Object?> legacyValues = const <String, Object?>{};
+
+    if (await portableFile.exists()) {
+      portableValues = await _readJsonMap(portableFile);
+    }
+    if (legacyFile != null && await legacyFile.exists()) {
+      legacyValues = await _readJsonMap(legacyFile);
+    }
+
+    final portableHasFlutterKeys = portableValues.keys.any((key) => key.startsWith('flutter.'));
+    final legacyHasFlutterKeys = legacyValues.keys.any((key) => key.startsWith('flutter.'));
+
+    Map<String, Object?> normalized;
+    String source;
+
+    if (portableHasFlutterKeys) {
+      normalized = _normalizePreferenceKeys(portableValues);
+      source = 'portable';
+    } else if (legacyHasFlutterKeys) {
+      // One-time rescue for users coming from 0.8.18 or older: copy the valid
+      // Flutter-format file from AppData into portable storage, then stop using AppData.
+      normalized = _normalizePreferenceKeys(legacyValues);
+      source = 'legacy_rescue';
+    } else if (portableValues.isNotEmpty) {
+      // Convert the old AndreyVPN portable format:
+      // intro_completed -> flutter.intro_completed, enable_analytics -> flutter.enable_analytics, etc.
+      normalized = _normalizePreferenceKeys(portableValues);
+      source = 'portable_converted';
+    } else if (legacyValues.isNotEmpty) {
+      normalized = _normalizePreferenceKeys(legacyValues);
+      source = 'legacy_converted';
+    } else {
+      normalized = <String, Object?>{
+        'flutter.preferences_version': 1,
+        'flutter.region': 'ru',
+        'flutter.locale': 'ru',
+        'flutter.enable_analytics': false,
+        'flutter.intro_completed': true,
+      };
+      source = 'defaults';
+    }
+
+    await _writeJsonMap(portableFile, normalized);
+    await _writePreferencesDiagnostic(
+      'portable preferences normalized from $source; keys=${normalized.keys.toList()}; flutter.intro_completed=${normalized['flutter.intro_completed']}; flutter.enable_analytics=${normalized['flutter.enable_analytics']}',
+    );
+  } catch (e) {
+    await _writePreferencesDiagnostic('normalize portable preferences error: $e');
+  }
+}
+
+Map<String, Object?> _normalizePreferenceKeys(Map<String, Object?> values) {
+  final normalized = <String, Object?>{};
+
+  for (final entry in values.entries) {
+    final rawKey = entry.key;
+    if (rawKey.isEmpty) continue;
+    final key = rawKey.startsWith('flutter.') ? rawKey : 'flutter.$rawKey';
+    normalized[key] = entry.value;
+  }
+
+  normalized.putIfAbsent('flutter.preferences_version', () => 1);
+  normalized.putIfAbsent('flutter.region', () => 'ru');
+  normalized.putIfAbsent('flutter.locale', () => 'ru');
+  normalized.putIfAbsent('flutter.enable_analytics', () => false);
+  normalized.putIfAbsent('flutter.intro_completed', () => true);
+
+  return normalized;
 }
 
 Future<File?> _legacyPreferencesFile() async {
@@ -125,9 +182,7 @@ Future<void> _writePreferencesDiagnostic(String message) async {
   }
 }
 
-Future<void> _delayedPortablePreferencesCleanup(SharedPreferences preferences) async {
-  // Some shared_preferences_windows writes can happen shortly after initialization.
-  // Keep this small delayed sync so portable copy stays up to date.
+Future<void> _delayedPortablePreferencesSync(SharedPreferences preferences) async {
   for (final delay in <Duration>[
     const Duration(milliseconds: 500),
     const Duration(seconds: 2),
@@ -149,16 +204,18 @@ Future<void> _mirrorPreferencesToPortable(SharedPreferences preferences) async {
 
     final values = <String, Object?>{};
     for (final key in preferences.getKeys()) {
-      values[key] = preferences.get(key);
+      final rawKey = key.startsWith('flutter.') ? key : 'flutter.$key';
+      values[rawKey] = preferences.get(key);
     }
 
+    final normalized = _normalizePreferenceKeys(values);
     final file = File(p.join(portableDir.path, 'shared_preferences.json'));
-    await file.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(values),
-      flush: true,
+    await _writeJsonMap(file, normalized);
+    await _writePreferencesDiagnostic(
+      'mirrored preferences to portable; flutter.intro_completed=${normalized['flutter.intro_completed']}; flutter.enable_analytics=${normalized['flutter.enable_analytics']}; keys=${normalized.keys.length}',
     );
-  } catch (_) {
-    // Preferences mirroring must never block startup.
+  } catch (e) {
+    await _writePreferencesDiagnostic('mirror preferences error: $e');
   }
 }
 
@@ -173,15 +230,128 @@ Future<void> _cleanupLegacyAppDataArtifacts() async {
 
     for (final name in <String>[
       'andreyvpn_restart_diagnostic.log',
+      'shared_preferences.json',
     ]) {
       final file = File(p.join(legacyDir.path, name));
       if (await file.exists()) {
         try {
           await file.delete();
-        } catch (_) {}
+          await _writePreferencesDiagnostic('deleted legacy artifact: ${file.path}');
+        } catch (e) {
+          await _writePreferencesDiagnostic('failed to delete legacy artifact ${file.path}: $e');
+        }
       }
     }
-  } catch (_) {
-    // Legacy cleanup must never block startup.
+
+    try {
+      final remaining = await legacyDir.list().isEmpty;
+      if (remaining) {
+        await legacyDir.delete();
+        await _writePreferencesDiagnostic('deleted empty legacy directory: ${legacyDir.path}');
+      }
+    } catch (_) {}
+  } catch (e) {
+    await _writePreferencesDiagnostic('legacy cleanup error: $e');
+  }
+}
+
+Future<Map<String, Object?>> _readJsonMap(File file) async {
+  if (!await file.exists()) return <String, Object?>{};
+  final content = await file.readAsString();
+  if (content.trim().isEmpty) return <String, Object?>{};
+  final decoded = jsonDecode(content);
+  if (decoded is! Map) return <String, Object?>{};
+  return decoded.map((key, value) => MapEntry(key.toString(), _normalizeJsonValue(value)));
+}
+
+Object? _normalizeJsonValue(Object? value) {
+  if (value is List) {
+    return value.map((e) => e.toString()).toList();
+  }
+  return value;
+}
+
+Future<void> _writeJsonMap(File file, Map<String, Object?> values) async {
+  if (!await file.parent.exists()) {
+    await file.parent.create(recursive: true);
+  }
+  await file.writeAsString(
+    const JsonEncoder.withIndent('  ').convert(values),
+    flush: true,
+  );
+}
+
+class _PortableJsonSharedPreferencesStore extends SharedPreferencesStorePlatform {
+  _PortableJsonSharedPreferencesStore(this.file);
+
+  final File file;
+
+  Future<Map<String, Object>> _readAllRaw() async {
+    final values = _normalizePreferenceKeys(await _readJsonMap(file));
+    final result = <String, Object>{};
+    for (final entry in values.entries) {
+      final value = entry.value;
+      if (value is bool || value is int || value is double || value is String || value is List<String>) {
+        result[entry.key] = value;
+      } else if (value is List) {
+        result[entry.key] = value.map((e) => e.toString()).toList();
+      }
+    }
+    return result;
+  }
+
+  Future<void> _writeAllRaw(Map<String, Object?> values) async {
+    await _writeJsonMap(file, _normalizePreferenceKeys(values));
+  }
+
+  @override
+  Future<Map<String, Object>> getAll() async {
+    final values = await _readAllRaw();
+    await _writePreferencesDiagnostic(
+      'portable store getAll; file=${file.path}; keys=${values.keys.toList()}; flutter.intro_completed=${values['flutter.intro_completed']}; flutter.enable_analytics=${values['flutter.enable_analytics']}',
+    );
+    return values;
+  }
+
+  @override
+  Future<bool> setValue(String valueType, String key, Object value) async {
+    final values = await _readAllRaw();
+    values[key] = value;
+    await _writeAllRaw(values);
+    await _writePreferencesDiagnostic('portable store setValue; key=$key; valueType=$valueType; value=$value');
+    return true;
+  }
+
+  @override
+  Future<bool> remove(String key) async {
+    final values = await _readAllRaw();
+    values.remove(key);
+    await _writeAllRaw(values);
+    await _writePreferencesDiagnostic('portable store remove; key=$key');
+    return true;
+  }
+
+  @override
+  Future<bool> clear() async {
+    await _writeAllRaw(<String, Object?>{});
+    await _writePreferencesDiagnostic('portable store clear');
+    return true;
+  }
+
+  @override
+  Future<Map<String, Object>> getAllWithParameters(GetAllParameters parameters) async {
+    // SharedPreferences itself still applies the configured prefix on top of
+    // the platform response. Returning all portable values keeps this backend
+    // compatible with shared_preferences_platform_interface API changes.
+    return getAll();
+  }
+
+  @override
+  Future<bool> clearWithParameters(ClearParameters parameters) async {
+    // This application does not rely on selective preferences clearing for the
+    // portable Windows backend. Keep behavior safe and explicit.
+    await _writeAllRaw(<String, Object?>{});
+    await _writePreferencesDiagnostic('portable store clearWithParameters');
+    return true;
   }
 }
