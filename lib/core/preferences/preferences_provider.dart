@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:hiddify/core/directories/directories_provider.dart';
 import 'package:hiddify/core/model/environment.dart';
 import 'package:hiddify/utils/platform_utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -26,7 +27,9 @@ Future<SharedPreferences> sharedPreferences(Ref ref) async {
       rethrow;
     }
     // https://github.com/flutter/flutter/issues/89211
-    final directory = await getApplicationSupportDirectory();
+    final directory = PlatformUtils.isWindows
+        ? await AppDirectories.getDatabaseDirectory()
+        : await getApplicationSupportDirectory();
     final file = File(p.join(directory.path, 'shared_preferences.json'));
     if (file.existsSync()) {
       file.deleteSync();

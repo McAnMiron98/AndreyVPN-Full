@@ -30,11 +30,22 @@ class AppDirectories extends _$AppDirectories with InfraLogger {
         workingDir: Directory(paths?["working"]! as String),
         tempDir: Directory(paths?["temp"]! as String),
       );
-    } else if (PlatformUtils.isWindows &&
-        Environment.isPortable &&
-        await checkDirectoryAccess(getPortableDirectory())) {
+    } else if (PlatformUtils.isWindows) {
       final portableDir = getPortableDirectory();
-      dirs = (baseDir: portableDir, workingDir: portableDir, tempDir: await getTemporaryDirectory());
+      final tempDir = await getTemporaryDirectory();
+      final hasPortableAccess = await checkDirectoryAccess(portableDir);
+      if (hasPortableAccess) {
+        dirs = (baseDir: portableDir, workingDir: portableDir, tempDir: tempDir);
+      } else {
+        final baseDir = await getApplicationSupportDirectory();
+        dirs = (baseDir: baseDir, workingDir: baseDir, tempDir: tempDir);
+      }
+      await _writePathDiagnostic(
+        selectedDir: dirs.baseDir,
+        portableDir: portableDir,
+        usedPortable: hasPortableAccess,
+        reason: hasPortableAccess ? 'portable directory is writable' : 'portable directory is not writable, fallback to application support',
+      );
     } else {
       final baseDir = await getApplicationSupportDirectory();
       final workingDir = Platform.isAndroid ? await getExternalStorageDirectory() : baseDir;
@@ -58,12 +69,26 @@ class AppDirectories extends _$AppDirectories with InfraLogger {
     }
     if (PlatformUtils.isIOS || PlatformUtils.isMacOS) {
       return await getLibraryDirectory();
-    } else if (PlatformUtils.isWindows &&
-        Environment.isPortable &&
-        await checkDirectoryAccess(getPortableDirectory())) {
+    } else if (PlatformUtils.isWindows) {
       final portableDir = getPortableDirectory();
-      return portableDir;
-    } else if (PlatformUtils.isWindows || PlatformUtils.isLinux) {
+      if (await checkDirectoryAccess(portableDir)) {
+        await _writePathDiagnostic(
+          selectedDir: portableDir,
+          portableDir: portableDir,
+          usedPortable: true,
+          reason: 'database directory uses portable directory',
+        );
+        return portableDir;
+      }
+      final fallbackDir = await getApplicationSupportDirectory();
+      await _writePathDiagnostic(
+        selectedDir: fallbackDir,
+        portableDir: portableDir,
+        usedPortable: false,
+        reason: 'database directory fallback: portable directory is not writable',
+      );
+      return fallbackDir;
+    } else if (PlatformUtils.isLinux) {
       return await getApplicationSupportDirectory();
     }
     return await getApplicationDocumentsDirectory();
@@ -71,7 +96,36 @@ class AppDirectories extends _$AppDirectories with InfraLogger {
 
   static Directory getPortableDirectory() {
     final exeDir = File(Platform.resolvedExecutable).parent;
-    return Directory(p.join(exeDir.path, 'hiddify_portable_data'));
+    return Directory(p.join(exeDir.path, 'andreyvpn_data'));
+  }
+
+  static Future<void> _writePathDiagnostic({
+    required Directory selectedDir,
+    required Directory portableDir,
+    required bool usedPortable,
+    required String reason,
+  }) async {
+    try {
+      final diagnosticDir = usedPortable ? portableDir : selectedDir;
+      if (!await diagnosticDir.exists()) {
+        await diagnosticDir.create(recursive: true);
+      }
+      final file = File(p.join(diagnosticDir.path, 'andreyvpn_path_diagnostic.log'));
+      final lines = <String>[
+        '[${DateTime.now().toIso8601String()}] AndreyVPN path diagnostics',
+        'resolvedExecutable: ${Platform.resolvedExecutable}',
+        'executableDir: ${File(Platform.resolvedExecutable).parent.path}',
+        'portableDir: ${portableDir.path}',
+        'selectedDir: ${selectedDir.path}',
+        'usedPortable: $usedPortable',
+        'reason: $reason',
+        'Environment.isPortable: ${Environment.isPortable}',
+        '',
+      ];
+      await file.writeAsString(lines.join('\n'), mode: FileMode.append, flush: true);
+    } catch (_) {
+      // Path diagnostics must never block application startup.
+    }
   }
 
   static Future<bool> checkDirectoryAccess(Directory dir) async {
