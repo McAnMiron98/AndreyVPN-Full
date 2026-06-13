@@ -48,7 +48,7 @@ class FullBackupNotifier with AppLogger {
 
       final manifest = <String, dynamic>{
         'app': 'AndreyVPN',
-        'appVersion': '0.8.7+47',
+        'appVersion': '0.8.8+48',
         'type': 'full_backup',
         'format': 2,
         'diagnostic': true,
@@ -169,48 +169,131 @@ class FullBackupNotifier with AppLogger {
 
   Future<bool> importFullBackup() async {
     final notification = ref.read(inAppNotificationControllerProvider);
+    final diagnostics = StringBuffer();
+    String? outputDiagnosticPath;
+    Directory? tempRoot;
+
+    void diag(String message) {
+      final line = '[${DateTime.now().toIso8601String()}] $message';
+      diagnostics.writeln(line);
+      loggy.info(line);
+    }
+
+    Future<void> writeImportDiagnostics() async {
+      if (outputDiagnosticPath == null) return;
+      try {
+        final diagnosticFile = File(outputDiagnosticPath!);
+        await diagnosticFile.parent.create(recursive: true);
+        await diagnosticFile.writeAsString(diagnostics.toString(), flush: true);
+      } catch (e, st) {
+        loggy.warning('error writing import diagnostic log', e, st);
+      }
+    }
 
     try {
+      diag('AndreyVPN full backup import started');
       final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['zip']);
-      if (result == null || result.files.single.path == null) return false;
+      if (result == null || result.files.single.path == null) {
+        diag('import cancelled by user');
+        return false;
+      }
 
       final backupFile = File(result.files.single.path!);
-      if (!await backupFile.exists()) return false;
+      outputDiagnosticPath = _diagnosticPathForImport(backupFile.path);
+      diag('selected backup zip: ${backupFile.path}');
+      diag('import diagnostic path: $outputDiagnosticPath');
+
+      if (!await backupFile.exists()) {
+        diag('selected backup zip does not exist');
+        await writeImportDiagnostics();
+        return false;
+      }
+      diag('selected backup zip size bytes: ${await backupFile.length()}');
 
       final dirs = await ref.read(appDirectoriesProvider.future);
       final databaseDir = await AppDirectories.getDatabaseDirectory();
-      final tempRoot = Directory(p.join(dirs.tempDir.path, 'andreyvpn_restore_${const Uuid().v4()}'));
+      tempRoot = Directory(p.join(dirs.tempDir.path, 'andreyvpn_restore_${const Uuid().v4()}'));
       await tempRoot.create(recursive: true);
+
+      diag('baseDir target: ${dirs.baseDir.path}');
+      diag('workingDir target: ${dirs.workingDir.path}');
+      diag('databaseDir target: ${databaseDir.path}');
+      diag('tempRoot: ${tempRoot.path}');
 
       final bytes = await backupFile.readAsBytes();
       final archive = ZipDecoder().decodeBytes(bytes);
+      diag('zip entries decoded before extract: ${archive.files.length}');
+      for (final file in archive.files) {
+        diag('zip entry: ${file.name} (${file.size} bytes)');
+      }
+
       extractArchiveToDisk(archive, tempRoot.path);
+      diag('archive extracted to tempRoot');
+      diag('extracted files count: ${await _countFiles(tempRoot)}');
 
       final manifest = File(p.join(tempRoot.path, 'andreyvpn_backup_manifest.json'));
       if (!await manifest.exists()) {
         throw const FormatException('Invalid AndreyVPN backup: manifest not found');
       }
+      diag('manifest found: ${manifest.path}');
+      diag('manifest content: ${await manifest.readAsString()}');
 
       final baseBackup = Directory(p.join(tempRoot.path, 'base'));
       final workingBackup = Directory(p.join(tempRoot.path, 'working'));
       final databaseBackup = Directory(p.join(tempRoot.path, 'database'));
 
       if (await baseBackup.exists()) {
-        await _copyDirectoryIfExists(baseBackup, dirs.baseDir);
+        diag('base backup exists, copying to target');
+        final count = await _copyDirectoryIfExists(
+          baseBackup,
+          dirs.baseDir,
+          diagnostics: diagnostics,
+          label: 'restore/base',
+        );
+        diag('base restored files: $count');
+      } else {
+        diag('base backup missing');
       }
       if (await workingBackup.exists()) {
-        await _copyDirectoryIfExists(workingBackup, dirs.workingDir);
+        diag('working backup exists, copying to target');
+        final count = await _copyDirectoryIfExists(
+          workingBackup,
+          dirs.workingDir,
+          diagnostics: diagnostics,
+          label: 'restore/working',
+        );
+        diag('working restored files: $count');
+      } else {
+        diag('working backup missing');
       }
       if (await databaseBackup.exists()) {
-        await _copyDirectoryIfExists(databaseBackup, databaseDir);
+        diag('database backup exists, copying to target');
+        final count = await _copyDirectoryIfExists(
+          databaseBackup,
+          databaseDir,
+          diagnostics: diagnostics,
+          label: 'restore/database',
+        );
+        diag('database restored files: $count');
+      } else {
+        diag('database backup missing');
       }
 
       await tempRoot.delete(recursive: true);
-      notification.showSuccessToast('Полный бэкап импортирован. Перезапустите приложение');
+      tempRoot = null;
+      diag('tempRoot deleted');
+      await writeImportDiagnostics();
+      notification.showSuccessToast('Полный бэкап импортирован. Диагностика сохранена рядом с архивом. Перезапустите приложение');
       return true;
     } catch (e, st) {
+      diagnostics.writeln('[${DateTime.now().toIso8601String()}] ERROR: $e');
+      diagnostics.writeln(st);
       loggy.warning('error importing full backup', e, st);
-      notification.showErrorToast('Не удалось импортировать полный бэкап');
+      if (tempRoot != null && await tempRoot.exists()) {
+        diagnostics.writeln('[${DateTime.now().toIso8601String()}] tempRoot kept for diagnostics: ${tempRoot.path}');
+      }
+      await writeImportDiagnostics();
+      notification.showErrorToast('Не удалось импортировать полный бэкап. Если лог создан, он сохранён рядом с архивом');
       return false;
     }
   }
@@ -349,4 +432,11 @@ class FullBackupNotifier with AppLogger {
     final nameWithoutExtension = p.basenameWithoutExtension(backupPath);
     return p.join(dir, '${nameWithoutExtension}_diagnostic.log');
   }
+
+  String _diagnosticPathForImport(String backupPath) {
+    final dir = p.dirname(backupPath);
+    final nameWithoutExtension = p.basenameWithoutExtension(backupPath);
+    return p.join(dir, '${nameWithoutExtension}_import_diagnostic.log');
+  }
+
 }
