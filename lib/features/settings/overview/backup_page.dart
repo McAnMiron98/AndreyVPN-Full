@@ -11,14 +11,31 @@ class BackupPage extends HookConsumerWidget {
 
   Future<void> _restartApplication() async {
     final executable = Platform.resolvedExecutable;
-    await Process.start(
-      executable,
-      const [],
-      mode: ProcessStartMode.detached,
-      runInShell: false,
-      workingDirectory: File(executable).parent.path,
-    );
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+    final workingDirectory = File(executable).parent.path;
+
+    if (Platform.isWindows) {
+      // Start the new instance from a detached cmd process after a short delay.
+      // This avoids the single-instance guard closing the new process while the
+      // current AndreyVPN process is still shutting down.
+      final command = 'timeout /t 1 /nobreak >NUL & start "" "$executable"';
+      await Process.start(
+        'cmd.exe',
+        ['/c', command],
+        mode: ProcessStartMode.detached,
+        runInShell: false,
+        workingDirectory: workingDirectory,
+      );
+    } else {
+      await Process.start(
+        executable,
+        const [],
+        mode: ProcessStartMode.detached,
+        runInShell: false,
+        workingDirectory: workingDirectory,
+      );
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 200));
     exit(0);
   }
 
