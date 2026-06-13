@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:hiddify/core/directories/directories_provider.dart';
 import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
 import 'package:hiddify/features/settings/notifier/full_backup_notifier.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -17,9 +18,9 @@ class BackupPage extends HookConsumerWidget {
   }
 
   File _restartDiagnosticFile() {
-    final appData = Platform.environment['APPDATA'];
-    if (Platform.isWindows && appData != null && appData.isNotEmpty) {
-      return File('$appData\\AndreyVPN\\AndreyVPN\\andreyvpn_restart_diagnostic.log');
+    if (Platform.isWindows) {
+      final portableDir = AppDirectories.getPortableDirectory();
+      return File('${portableDir.path}${Platform.pathSeparator}andreyvpn_restart_diagnostic.log');
     }
     return File('${Directory.systemTemp.path}${Platform.pathSeparator}andreyvpn_restart_diagnostic.log');
   }

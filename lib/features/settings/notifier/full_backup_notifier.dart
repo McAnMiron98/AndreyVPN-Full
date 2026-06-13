@@ -285,7 +285,7 @@ class FullBackupNotifier with AppLogger {
 
       final manifest = <String, dynamic>{
         'app': 'AndreyVPN',
-        'appVersion': '0.8.12+52',
+        'appVersion': '0.8.17+57',
         'type': 'full_backup',
         'format': 2,
         'diagnostic': true,
@@ -383,6 +383,8 @@ class FullBackupNotifier with AppLogger {
         diag('zip written to selected path, size bytes: ${await file.length()}');
       }
 
+      await _cleanupExternalLevelDbDataFolder(outputZipPath, diagnostics);
+
       final outputDiagnosticPath = _diagnosticPathForBackup(outputZipPath);
       await File(outputDiagnosticPath).writeAsString(diagnostics.toString(), flush: true);
       diag('external diagnostic log written: $outputDiagnosticPath');
@@ -398,6 +400,59 @@ class FullBackupNotifier with AppLogger {
       return false;
     }
   }
+  Future<void> _cleanupExternalLevelDbDataFolder(String outputZipPath, StringBuffer diagnostics) async {
+    void diag(String message) {
+      diagnostics.writeln('[${DateTime.now().toIso8601String()}] $message');
+    }
+
+    try {
+      if (!PlatformUtils.isWindows) return;
+
+      final outputDir = File(outputZipPath).parent;
+      final possibleDataDir = Directory(p.join(outputDir.path, 'data'));
+      final possibleAppSettingsDir = Directory(p.join(possibleDataDir.path, 'AppSettings.db'));
+
+      if (!await possibleDataDir.exists() || !await possibleAppSettingsDir.exists()) {
+        diag('external cleanup: no sibling data/AppSettings.db folder found near backup');
+        return;
+      }
+
+      // Never touch Flutter runtime data folders.
+      final protectedRuntimeFiles = <String>[
+        'flutter_assets',
+        'app.so',
+        'icudtl.dat',
+      ];
+      for (final name in protectedRuntimeFiles) {
+        if (await File(p.join(possibleDataDir.path, name)).exists() ||
+            await Directory(p.join(possibleDataDir.path, name)).exists()) {
+          diag('external cleanup: skipped because sibling data folder looks like Flutter runtime data: ${possibleDataDir.path}');
+          return;
+        }
+      }
+
+      // Only remove the AppSettings.db folder if the sibling data folder contains no other real items.
+      final dataItems = await possibleDataDir.list(followLinks: false).toList();
+      final hasOnlyAppSettings = dataItems.every((entity) => p.basename(entity.path) == 'AppSettings.db');
+      if (!hasOnlyAppSettings) {
+        diag('external cleanup: skipped because sibling data folder contains other files: ${possibleDataDir.path}');
+        return;
+      }
+
+      await possibleAppSettingsDir.delete(recursive: true);
+      diag('external cleanup: deleted temporary sibling AppSettings.db folder: ${possibleAppSettingsDir.path}');
+
+      final remainingItems = await possibleDataDir.list(followLinks: false).toList();
+      if (remainingItems.isEmpty) {
+        await possibleDataDir.delete();
+        diag('external cleanup: deleted empty temporary sibling data folder: ${possibleDataDir.path}');
+      }
+    } catch (e, st) {
+      diag('external cleanup error: $e');
+      diagnostics.writeln(st);
+    }
+  }
+
 
   Future<bool> importFullBackup() async {
     final notification = ref.read(inAppNotificationControllerProvider);
@@ -497,7 +552,7 @@ class FullBackupNotifier with AppLogger {
 
       final pendingManifest = <String, dynamic>{
         'app': 'AndreyVPN',
-        'appVersion': '0.8.12+52',
+        'appVersion': '0.8.17+57',
         'type': 'pending_restore',
         'format': 1,
         'createdAt': DateTime.now().toIso8601String(),
