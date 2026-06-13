@@ -9,18 +9,40 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 class BackupPage extends HookConsumerWidget {
   const BackupPage({super.key});
 
+  String _normalizeWindowsPath(String path) {
+    if (path.startsWith(r'\\?\')) {
+      return path.substring(4);
+    }
+    return path;
+  }
+
+  String _escapePowerShellSingleQuoted(String value) {
+    return value.replaceAll("'", "''");
+  }
+
   Future<void> _restartApplication() async {
-    final executable = Platform.resolvedExecutable;
+    final executable = Platform.isWindows ? _normalizeWindowsPath(Platform.resolvedExecutable) : Platform.resolvedExecutable;
     final workingDirectory = File(executable).parent.path;
 
     if (Platform.isWindows) {
-      // Start the new instance from a detached cmd process after a short delay.
-      // This avoids the single-instance guard closing the new process while the
-      // current AndreyVPN process is still shutting down.
-      final command = 'timeout /t 1 /nobreak >NUL & start "" "$executable"';
+      // Start the new instance after the current process has time to exit.
+      // Use PowerShell Start-Process instead of cmd/start to avoid malformed
+      // UNC-like paths such as \\?\C:\... and to avoid a visible console window.
+      final psExecutable = _escapePowerShellSingleQuoted(executable);
+      final psWorkingDirectory = _escapePowerShellSingleQuoted(workingDirectory);
+      final command = "Start-Sleep -Milliseconds 900; Start-Process -FilePath '$psExecutable' -WorkingDirectory '$psWorkingDirectory'";
+
       await Process.start(
-        'cmd.exe',
-        ['/c', command],
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-WindowStyle',
+          'Hidden',
+          '-Command',
+          command,
+        ],
         mode: ProcessStartMode.detached,
         runInShell: false,
         workingDirectory: workingDirectory,
