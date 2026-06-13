@@ -292,7 +292,7 @@ class _PortableJsonSharedPreferencesStore extends SharedPreferencesStorePlatform
     for (final entry in values.entries) {
       final value = entry.value;
       if (value is bool || value is int || value is double || value is String || value is List<String>) {
-        result[entry.key] = value;
+        result[entry.key] = value as Object;
       } else if (value is List) {
         result[entry.key] = value.map((e) => e.toString()).toList();
       }
@@ -335,23 +335,6 @@ class _PortableJsonSharedPreferencesStore extends SharedPreferencesStorePlatform
   Future<bool> clear() async {
     await _writeAllRaw(<String, Object?>{});
     await _writePreferencesDiagnostic('portable store clear');
-    return true;
-  }
-
-  @override
-  Future<Map<String, Object>> getAllWithParameters(GetAllParameters parameters) async {
-    // SharedPreferences itself still applies the configured prefix on top of
-    // the platform response. Returning all portable values keeps this backend
-    // compatible with shared_preferences_platform_interface API changes.
-    return getAll();
-  }
-
-  @override
-  Future<bool> clearWithParameters(ClearParameters parameters) async {
-    // This application does not rely on selective preferences clearing for the
-    // portable Windows backend. Keep behavior safe and explicit.
-    await _writeAllRaw(<String, Object?>{});
-    await _writePreferencesDiagnostic('portable store clearWithParameters');
     return true;
   }
 }
