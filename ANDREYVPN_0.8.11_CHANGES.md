@@ -15,5 +15,5 @@
 
 - No VPN core logic changes.
 - No routing logic changes.
-- No Hiddify cleanup/renaming.
+- No upstream branding cleanup/renaming.
 - No automatic rollback redesign yet.

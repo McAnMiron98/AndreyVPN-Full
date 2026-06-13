@@ -3,11 +3,11 @@
     <channel>
         <title>AndreyVPN Releases</title>
         <item>
-            <title>Version 0.9.0</title>
+            <title>Version 0.9.1</title>
             <pubDate>Fri, 12 Jun 2026 00:00:00 +0000</pubDate>
             <enclosure
-                url="https://github.com/McAnMiron98/AndreyVPN-Full/releases/download/v0.9.0/AndreyVPN-0.9.0-windows-portable.zip"
-                sparkle:version="0.9.0" sparkle:os="windows" />
+                url="https://github.com/McAnMiron98/AndreyVPN-Full/releases/download/v0.9.1/AndreyVPN-0.9.1-windows-portable.zip"
+                sparkle:version="0.9.1" sparkle:os="windows" />
         </item>
     </channel>
 </rss>

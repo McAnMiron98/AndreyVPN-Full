@@ -14,7 +14,7 @@
 - No routing changes.
 - No profile database schema changes.
 - No import/restore redesign yet.
-- No Hiddify cleanup/renaming.
+- No upstream branding cleanup/renaming.
 
 ## Goal
 

@@ -14,7 +14,7 @@
 - No VPN core logic changes.
 - No rollback/safe restore redesign yet.
 - No automatic pre-import backup yet.
-- No Hiddify cleanup.
+- No upstream branding cleanup.
 
 ## Risk
 

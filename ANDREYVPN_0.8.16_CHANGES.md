@@ -13,7 +13,7 @@
 - No automatic migration from `%APPDATA%\AndreyVPN\AndreyVPN`.
 - No VPN core logic changes.
 - No backup archive format change.
-- No Hiddify cleanup.
+- No upstream branding cleanup.
 
 ## Notes
 - Existing users should restore data from a previously created backup after switching to this version.

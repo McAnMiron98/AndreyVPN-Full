@@ -5,7 +5,7 @@ Changes:
 - Version updated to 0.4.0.
 - Added AndreyVPN update checker via GitHub Releases.
 - Update source: https://github.com/McAnMiron98/AndreyVPN-Full/releases
-- Removed dependency on Hiddify release/update endpoints for update checks.
+- Removed dependency on upstream release/update endpoints for update checks.
 - The update dialog opens the matching AndreyVPN GitHub Release page.
 - VPN logic was not changed.
 

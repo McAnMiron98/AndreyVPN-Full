@@ -22,7 +22,7 @@ This release adds detailed diagnostic logging to the full backup import flow.
 - Export diagnostic logging is kept unchanged for now.
 - No VPN core logic changes.
 - No safe restore/rollback redesign yet.
-- No Hiddify cleanup changes.
+- No upstream branding cleanup changes.
 
 ## Risk
 

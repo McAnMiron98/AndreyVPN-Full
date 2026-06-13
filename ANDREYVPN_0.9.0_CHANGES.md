@@ -6,7 +6,7 @@
 - Renamed bundled Windows core DLL in the release output:
   - `hiddify-core.dll` → `andrey-core.dll`
 - Renamed bundled Windows CLI binary in the release output:
-  - `HiddifyCli.exe` → `AndreyCli.exe`
+  - `upstreamCli.exe` → `AndreyCli.exe`
 - Updated Windows native DLL loader to open `andrey-core.dll`.
 - Updated Windows CMake install rules for renamed binaries.
 - Updated appcast and Windows portable GitHub artifact naming to 0.9.0.

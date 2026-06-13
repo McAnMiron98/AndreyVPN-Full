@@ -1,10 +1,20 @@
 # AndreyVPN
 
-Кастомный Windows VPN-клиент на базе open-source проекта Hiddify.
+AndreyVPN — portable VPN-клиент для Windows.
 
 ## Текущая версия
 
-AndreyVPN 0.8.0
+AndreyVPN 0.9.1
+
+## Portable-хранилище
+
+Пользовательские данные хранятся рядом с `AndreyVPN.exe` в папке:
+
+```text
+andreyvpn_data/
+```
+
+В этой папке находятся профили, настройки, логи, состояние бэкапа и runtime-данные.
 
 ## Сборка
 
@@ -12,8 +22,8 @@ Windows-сборка выполняется через GitHub Actions, workflow 
 
 ## Обновления
 
-Portable-версии распространяются через GitHub Releases. Приложение умеет проверять обновления и обновляться через отдельный `AndreyVPNUpdater.exe`.
+Portable-версии распространяются через GitHub Releases. Обновление выполняется через `AndreyVPNUpdater.exe`.
 
 ## Важно
 
-Часть внутренних package/import/core-названий может всё ещё содержать `hiddify`. Это технические имена upstream-проекта и VPN-core интеграции. Они оставлены намеренно, чтобы не сломать сборку.
+Некоторые внутренние имена исходного кода намеренно оставлены без изменений там, где они относятся к upstream core integration и не видны пользователю.

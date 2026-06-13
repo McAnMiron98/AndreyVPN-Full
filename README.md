@@ -1,10 +1,20 @@
 # AndreyVPN
 
-Custom Windows VPN client based on the Hiddify open-source project.
+AndreyVPN is a Windows portable VPN client.
 
 ## Current version
 
-AndreyVPN 0.8.0
+AndreyVPN 0.9.1
+
+## Windows portable storage
+
+User data is stored next to `AndreyVPN.exe` in:
+
+```text
+andreyvpn_data/
+```
+
+This folder contains profiles, settings, logs, backup state and runtime data.
 
 ## Build
 
@@ -12,8 +22,8 @@ Windows builds are produced through GitHub Actions using the `Build Windows Andr
 
 ## Updates
 
-Portable builds are distributed through GitHub Releases. The application can check for updates and update itself through the external `AndreyVPNUpdater.exe`.
+Portable builds are distributed through GitHub Releases. The application can update itself through `AndreyVPNUpdater.exe`.
 
 ## Notes
 
-Some internal package names and core binary names may still contain `hiddify` because they are part of the upstream codebase and VPN core integration. They are intentionally left unchanged to avoid breaking the build.
+Some internal source package names are intentionally left unchanged where they are part of upstream core integration and are not user-facing.

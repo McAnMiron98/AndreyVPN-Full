@@ -17,7 +17,7 @@
 - VPN/core logic was not changed.
 - Profile logic was not changed.
 - Import/restore logic was not redesigned yet.
-- Hiddify internal naming was not cleaned up.
+- upstream internal naming was not cleaned up.
 
 ## Risk
 

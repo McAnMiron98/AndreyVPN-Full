@@ -33,7 +33,7 @@ This release cleans up the full backup export introduced and fixed in previous v
 - No VPN core logic changes.
 - No import/restore redesign yet.
 - No profile or routing logic changes.
-- No Hiddify internal cleanup in this release.
+- No upstream internal cleanup in this release.
 
 ## Risk
 
