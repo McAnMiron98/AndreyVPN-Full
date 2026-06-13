@@ -141,7 +141,6 @@ class AppDirectories extends _$AppDirectories with InfraLogger {
       if (!await legacyDir.exists()) return;
 
       for (final name in <String>[
-        'shared_preferences.json',
         'andreyvpn_restart_diagnostic.log',
       ]) {
         final file = File(p.join(legacyDir.path, name));
