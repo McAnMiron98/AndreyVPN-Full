@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
@@ -6,6 +8,46 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class BackupPage extends HookConsumerWidget {
   const BackupPage({super.key});
+
+  Future<void> _restartApplication() async {
+    final executable = Platform.resolvedExecutable;
+    await Process.start(
+      executable,
+      const [],
+      mode: ProcessStartMode.detached,
+      runInShell: false,
+      workingDirectory: File(executable).parent.path,
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    exit(0);
+  }
+
+  Future<void> _showRestartPrompt(BuildContext context) async {
+    final shouldRestart = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Импорт завершён'),
+        content: const Text(
+          'Для успешного применения восстановленных данных необходимо перезапустить приложение.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Позже'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Перезапустить'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldRestart == true) {
+      await _restartApplication();
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -42,7 +84,10 @@ class BackupPage extends HookConsumerWidget {
                         'Текущие данные приложения будут заменены данными из бэкапа. После импорта перезапустите приложение.',
                   );
               if (shouldImport) {
-                await ref.read(fullBackupNotifierProvider).importFullBackup();
+                final imported = await ref.read(fullBackupNotifierProvider).importFullBackup();
+                if (imported && context.mounted) {
+                  await _showRestartPrompt(context);
+                }
               }
             },
           ),
