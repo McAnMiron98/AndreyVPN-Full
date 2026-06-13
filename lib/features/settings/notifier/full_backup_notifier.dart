@@ -48,7 +48,7 @@ class FullBackupNotifier with AppLogger {
 
       final manifest = <String, dynamic>{
         'app': 'AndreyVPN',
-        'appVersion': '0.8.8+48',
+        'appVersion': '0.8.9+49',
         'type': 'full_backup',
         'format': 2,
         'diagnostic': true,
@@ -227,9 +227,10 @@ class FullBackupNotifier with AppLogger {
         diag('zip entry: ${file.name} (${file.size} bytes)');
       }
 
-      extractArchiveToDisk(archive, tempRoot.path);
-      diag('archive extracted to tempRoot');
+      final extractedCount = await _extractArchiveToDirectory(archive, tempRoot, diagnostics);
+      diag('archive extracted to tempRoot with manual extractor');
       diag('extracted files count: ${await _countFiles(tempRoot)}');
+      diag('manual extracted files count: $extractedCount');
 
       final manifest = File(p.join(tempRoot.path, 'andreyvpn_backup_manifest.json'));
       if (!await manifest.exists()) {
@@ -242,6 +243,9 @@ class FullBackupNotifier with AppLogger {
       final workingBackup = Directory(p.join(tempRoot.path, 'working'));
       final databaseBackup = Directory(p.join(tempRoot.path, 'database'));
 
+      await _logExpectedRestoreState(baseBackup, diagnostics, label: 'source/base expected files before restore');
+      await _logExpectedRestoreState(dirs.baseDir, diagnostics, label: 'target/base expected files before restore');
+
       if (await baseBackup.exists()) {
         diag('base backup exists, copying to target');
         final count = await _copyDirectoryIfExists(
@@ -251,6 +255,7 @@ class FullBackupNotifier with AppLogger {
           label: 'restore/base',
         );
         diag('base restored files: $count');
+        await _logExpectedRestoreState(dirs.baseDir, diagnostics, label: 'target/base expected files after restore');
       } else {
         diag('base backup missing');
       }
@@ -295,6 +300,77 @@ class FullBackupNotifier with AppLogger {
       await writeImportDiagnostics();
       notification.showErrorToast('Не удалось импортировать полный бэкап. Если лог создан, он сохранён рядом с архивом');
       return false;
+    }
+  }
+
+
+  Future<int> _extractArchiveToDirectory(
+    Archive archive,
+    Directory destination,
+    StringBuffer diagnostics,
+  ) async {
+    await destination.create(recursive: true);
+    var extracted = 0;
+
+    for (final entry in archive.files) {
+      final rawName = entry.name.replaceAll('\\', '/');
+      final normalizedName = p.posix.normalize(rawName);
+
+      if (normalizedName == '.' ||
+          normalizedName.startsWith('../') ||
+          p.posix.isAbsolute(normalizedName)) {
+        diagnostics.writeln('[${DateTime.now().toIso8601String()}] extract skipped unsafe entry: ${entry.name}');
+        continue;
+      }
+
+      final destinationPath = p.joinAll([
+        destination.path,
+        ...normalizedName.split('/').where((part) => part.isNotEmpty),
+      ]);
+
+      if (entry.isFile) {
+        final outFile = File(destinationPath);
+        await outFile.parent.create(recursive: true);
+        final content = entry.content as List<int>;
+        await outFile.writeAsBytes(content, flush: true);
+        extracted++;
+        diagnostics.writeln('[${DateTime.now().toIso8601String()}] extract file: ${entry.name} -> $destinationPath (${content.length} bytes)');
+      } else {
+        await Directory(destinationPath).create(recursive: true);
+        diagnostics.writeln('[${DateTime.now().toIso8601String()}] extract directory: ${entry.name} -> $destinationPath');
+      }
+    }
+
+    return extracted;
+  }
+
+  Future<void> _logExpectedRestoreState(
+    Directory root,
+    StringBuffer diagnostics, {
+    required String label,
+  }) async {
+    final expectedFiles = <String>[
+      'db.sqlite',
+      'shared_preferences.json',
+      p.join('data', 'clash.db'),
+      p.join('data', 'current-config.json'),
+    ];
+
+    diagnostics.writeln('[${DateTime.now().toIso8601String()}] $label root: ${root.path}');
+    for (final relativePath in expectedFiles) {
+      final file = File(p.join(root.path, relativePath));
+      if (await file.exists()) {
+        diagnostics.writeln('[${DateTime.now().toIso8601String()}] $label: $relativePath exists, size bytes: ${await file.length()}');
+      } else {
+        diagnostics.writeln('[${DateTime.now().toIso8601String()}] $label: $relativePath missing');
+      }
+    }
+
+    final appSettingsDir = Directory(p.join(root.path, 'data', 'AppSettings.db'));
+    if (await appSettingsDir.exists()) {
+      diagnostics.writeln('[${DateTime.now().toIso8601String()}] $label: data/AppSettings.db exists, files: ${await _countFiles(appSettingsDir)}');
+    } else {
+      diagnostics.writeln('[${DateTime.now().toIso8601String()}] $label: data/AppSettings.db missing');
     }
   }
 
