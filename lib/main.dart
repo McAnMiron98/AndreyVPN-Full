@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hiddify/bootstrap.dart';
 import 'package:hiddify/core/model/environment.dart';
+import 'package:hiddify/features/settings/notifier/full_backup_notifier.dart';
 
 Future<void> main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   // final widgetsBinding = SentryWidgetsFlutterBinding.ensureInitialized();
   // debugPaintSizeEnabled = true;
+
+  await FullBackupNotifier.processPendingRestoreIfNeeded();
 
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(

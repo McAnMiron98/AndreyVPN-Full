@@ -20,6 +20,235 @@ class FullBackupNotifier with AppLogger {
 
   final Ref ref;
 
+  static Future<void> processPendingRestoreIfNeeded() async {
+    final diagnostics = StringBuffer();
+
+    void diag(String message) {
+      final line = '[${DateTime.now().toIso8601String()}] $message';
+      diagnostics.writeln(line);
+    }
+
+    File? diagnosticFile;
+
+    try {
+      diag('AndreyVPN pending restore startup check started');
+
+      final baseDir = await AppDirectories.getDatabaseDirectory();
+      final pendingFile = File(p.join(baseDir.path, 'andreyvpn_pending_restore.json'));
+      final pendingRoot = Directory(p.join(baseDir.path, 'andreyvpn_pending_restore'));
+      diagnosticFile = File(p.join(baseDir.path, 'andreyvpn_pending_restore_diagnostic.log'));
+
+      diag('baseDir: ${baseDir.path}');
+      diag('pendingFile: ${pendingFile.path}');
+      diag('pendingRoot: ${pendingRoot.path}');
+
+      if (!await pendingFile.exists()) {
+        diag('pending restore manifest missing, nothing to restore');
+        await diagnosticFile.writeAsString(diagnostics.toString(), flush: true);
+        return;
+      }
+
+      if (!await pendingRoot.exists()) {
+        diag('pending restore directory missing, deleting manifest');
+        await pendingFile.delete();
+        await diagnosticFile.writeAsString(diagnostics.toString(), flush: true);
+        return;
+      }
+
+      diag('pending restore manifest content: ${await pendingFile.readAsString()}');
+
+      final baseBackup = Directory(p.join(pendingRoot.path, 'base'));
+      final workingBackup = Directory(p.join(pendingRoot.path, 'working'));
+      final databaseBackup = Directory(p.join(pendingRoot.path, 'database'));
+
+      await _logExpectedRestoreStateStatic(baseBackup, diagnostics, label: 'pending/source/base before startup restore');
+      await _logExpectedRestoreStateStatic(baseDir, diagnostics, label: 'target/base before startup restore');
+
+      if (await baseBackup.exists()) {
+        final count = await _copyDirectoryIfExistsStatic(
+          baseBackup,
+          baseDir,
+          diagnostics: diagnostics,
+          label: 'startup_restore/base',
+        );
+        diag('startup base restored files: $count');
+      } else {
+        diag('startup base backup missing');
+      }
+
+      if (await workingBackup.exists()) {
+        final count = await _copyDirectoryIfExistsStatic(
+          workingBackup,
+          baseDir,
+          diagnostics: diagnostics,
+          label: 'startup_restore/working',
+        );
+        diag('startup working restored files: $count');
+      } else {
+        diag('startup working backup missing');
+      }
+
+      final databaseDir = await AppDirectories.getDatabaseDirectory();
+      if (await databaseBackup.exists()) {
+        final count = await _copyDirectoryIfExistsStatic(
+          databaseBackup,
+          databaseDir,
+          diagnostics: diagnostics,
+          label: 'startup_restore/database',
+        );
+        diag('startup database restored files: $count');
+      } else {
+        diag('startup database backup missing');
+      }
+
+      await _logExpectedRestoreStateStatic(baseDir, diagnostics, label: 'target/base after startup restore');
+
+      await pendingFile.delete();
+      diag('pending restore manifest deleted');
+
+      await pendingRoot.delete(recursive: true);
+      diag('pending restore directory deleted');
+
+      await diagnosticFile.writeAsString(diagnostics.toString(), flush: true);
+    } catch (e, st) {
+      diagnostics.writeln('[${DateTime.now().toIso8601String()}] ERROR: $e');
+      diagnostics.writeln(st);
+      if (diagnosticFile != null) {
+        try {
+          await diagnosticFile.writeAsString(diagnostics.toString(), flush: true);
+        } catch (_) {}
+      }
+    }
+  }
+
+  static Future<int> _copyDirectoryIfExistsStatic(
+    Directory source,
+    Directory destination, {
+    StringBuffer? diagnostics,
+    String? label,
+  }) async {
+    void diag(String message) {
+      diagnostics?.writeln('[${DateTime.now().toIso8601String()}] $message');
+    }
+
+    if (!await source.exists()) {
+      diag('${label ?? source.path}: source missing: ${source.path}');
+      return 0;
+    }
+
+    diag('${label ?? source.path}: source exists: ${source.path}');
+    if (!await destination.exists()) await destination.create(recursive: true);
+
+    var copied = 0;
+    await for (final entity in source.list(recursive: false, followLinks: false)) {
+      final name = p.basename(entity.path);
+      if (_shouldSkipStatic(name)) {
+        diag('${label ?? source.path}: skipped: ${entity.path}');
+        continue;
+      }
+
+      final newPath = p.join(destination.path, name);
+      if (entity is Directory) {
+        copied += await _copyDirectoryIfExistsStatic(
+          entity,
+          Directory(newPath),
+          diagnostics: diagnostics,
+          label: label == null ? name : '$label/$name',
+        );
+      } else if (entity is File) {
+        await _copyFileWithOverwriteStatic(
+          entity,
+          File(newPath),
+          diagnostics: diagnostics,
+          label: label ?? source.path,
+        );
+        copied++;
+      } else {
+        diag('${label ?? source.path}: ignored non-file entity: ${entity.path}');
+      }
+    }
+
+    return copied;
+  }
+
+  static Future<void> _copyFileWithOverwriteStatic(
+    File source,
+    File destination, {
+    StringBuffer? diagnostics,
+    String? label,
+  }) async {
+    void diag(String message) {
+      diagnostics?.writeln('[${DateTime.now().toIso8601String()}] $message');
+    }
+
+    await destination.parent.create(recursive: true);
+
+    if (await destination.exists()) {
+      final oldSize = await destination.length();
+      diag('${label ?? source.path}: overwriting existing file: ${destination.path} (old size bytes: $oldSize)');
+      await destination.delete();
+    } else {
+      diag('${label ?? source.path}: target file does not exist, creating: ${destination.path}');
+    }
+
+    await source.copy(destination.path);
+    final newSize = await destination.length();
+    diag('${label ?? source.path}: copied file: ${source.path} -> ${destination.path} (new size bytes: $newSize)');
+  }
+
+  static Future<void> _logExpectedRestoreStateStatic(
+    Directory root,
+    StringBuffer diagnostics, {
+    required String label,
+  }) async {
+    final expectedFiles = <String>[
+      'db.sqlite',
+      'shared_preferences.json',
+      p.join('data', 'clash.db'),
+      p.join('data', 'current-config.json'),
+    ];
+
+    diagnostics.writeln('[${DateTime.now().toIso8601String()}] $label root: ${root.path}');
+    for (final relativePath in expectedFiles) {
+      final file = File(p.join(root.path, relativePath));
+      if (await file.exists()) {
+        diagnostics.writeln('[${DateTime.now().toIso8601String()}] $label: $relativePath exists, size bytes: ${await file.length()}');
+      } else {
+        diagnostics.writeln('[${DateTime.now().toIso8601String()}] $label: $relativePath missing');
+      }
+    }
+
+    final appSettingsDir = Directory(p.join(root.path, 'data', 'AppSettings.db'));
+    if (await appSettingsDir.exists()) {
+      diagnostics.writeln('[${DateTime.now().toIso8601String()}] $label: data/AppSettings.db exists, files: ${await _countFilesStatic(appSettingsDir)}');
+    } else {
+      diagnostics.writeln('[${DateTime.now().toIso8601String()}] $label: data/AppSettings.db missing');
+    }
+  }
+
+  static Future<int> _countFilesStatic(Directory directory) async {
+    if (!await directory.exists()) return 0;
+
+    var count = 0;
+    await for (final entity in directory.list(recursive: true, followLinks: false)) {
+      if (entity is File) count++;
+    }
+    return count;
+  }
+
+  static bool _shouldSkipStatic(String name) {
+    return name == 'access_test.txt' ||
+        name == 'app.log' ||
+        name == 'box.log' ||
+        name == 'goroutine-start.log' ||
+        name.endsWith('-journal') ||
+        name.endsWith('-shm') ||
+        name.endsWith('-wal') ||
+        name == 'Cache' ||
+        name == 'cache';
+  }
+
+
   Future<bool> exportFullBackup() async {
     final notification = ref.read(inAppNotificationControllerProvider);
     final diagnostics = StringBuffer();
@@ -48,7 +277,7 @@ class FullBackupNotifier with AppLogger {
 
       final manifest = <String, dynamic>{
         'app': 'AndreyVPN',
-        'appVersion': '0.8.10+50',
+        'appVersion': '0.8.11+51',
         'type': 'full_backup',
         'format': 2,
         'diagnostic': true,
@@ -243,52 +472,57 @@ class FullBackupNotifier with AppLogger {
       final workingBackup = Directory(p.join(tempRoot.path, 'working'));
       final databaseBackup = Directory(p.join(tempRoot.path, 'database'));
 
-      await _logExpectedRestoreState(baseBackup, diagnostics, label: 'source/base expected files before restore');
-      await _logExpectedRestoreState(dirs.baseDir, diagnostics, label: 'target/base expected files before restore');
+      await _logExpectedRestoreState(baseBackup, diagnostics, label: 'source/base expected files before deferred restore');
+      await _logExpectedRestoreState(dirs.baseDir, diagnostics, label: 'target/base expected files before deferred restore');
 
-      if (await baseBackup.exists()) {
-        diag('base backup exists, copying to target');
-        final count = await _copyDirectoryIfExists(
-          baseBackup,
-          dirs.baseDir,
-          diagnostics: diagnostics,
-          label: 'restore/base',
-        );
-        diag('base restored files: $count');
-        await _logExpectedRestoreState(dirs.baseDir, diagnostics, label: 'target/base expected files after restore');
-      } else {
-        diag('base backup missing');
+      final pendingRoot = Directory(p.join(dirs.baseDir.path, 'andreyvpn_pending_restore'));
+      final pendingFile = File(p.join(dirs.baseDir.path, 'andreyvpn_pending_restore.json'));
+
+      if (await pendingRoot.exists()) {
+        diag('removing previous pending restore directory: ${pendingRoot.path}');
+        await pendingRoot.delete(recursive: true);
       }
-      if (await workingBackup.exists()) {
-        diag('working backup exists, copying to target');
-        final count = await _copyDirectoryIfExists(
-          workingBackup,
-          dirs.workingDir,
-          diagnostics: diagnostics,
-          label: 'restore/working',
-        );
-        diag('working restored files: $count');
-      } else {
-        diag('working backup missing');
-      }
-      if (await databaseBackup.exists()) {
-        diag('database backup exists, copying to target');
-        final count = await _copyDirectoryIfExists(
-          databaseBackup,
-          databaseDir,
-          diagnostics: diagnostics,
-          label: 'restore/database',
-        );
-        diag('database restored files: $count');
-      } else {
-        diag('database backup missing');
-      }
+      await pendingRoot.create(recursive: true);
+
+      final stagedCount = await _copyDirectoryIfExists(
+        tempRoot,
+        pendingRoot,
+        diagnostics: diagnostics,
+        label: 'stage/pending_restore',
+      );
+      diag('pending restore staged files: $stagedCount');
+
+      final pendingManifest = <String, dynamic>{
+        'app': 'AndreyVPN',
+        'appVersion': '0.8.11+51',
+        'type': 'pending_restore',
+        'format': 1,
+        'createdAt': DateTime.now().toIso8601String(),
+        'sourceBackupPath': backupFile.path,
+        'stagedRoot': pendingRoot.path,
+        'baseTarget': dirs.baseDir.path,
+        'workingTarget': dirs.workingDir.path,
+        'databaseTarget': databaseDir.path,
+        'items': <String>[
+          if (await baseBackup.exists()) 'base',
+          if (await workingBackup.exists()) 'working',
+          if (await databaseBackup.exists()) 'database',
+        ],
+        'stagedFileCount': stagedCount,
+      };
+
+      await pendingFile.writeAsString(
+        const JsonEncoder.withIndent('  ').convert(pendingManifest),
+        flush: true,
+      );
+      diag('pending restore manifest written: ${pendingFile.path}');
+      diag('pending restore will be applied on next application start before live databases are opened');
 
       await tempRoot.delete(recursive: true);
       tempRoot = null;
       diag('tempRoot deleted');
       await writeImportDiagnostics();
-      notification.showSuccessToast('Полный бэкап импортирован. Диагностика сохранена рядом с архивом. Перезапустите приложение');
+      notification.showSuccessToast('Бэкап подготовлен к восстановлению. Закройте и снова запустите приложение');
       return true;
     } catch (e, st) {
       diagnostics.writeln('[${DateTime.now().toIso8601String()}] ERROR: $e');
