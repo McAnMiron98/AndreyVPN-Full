@@ -229,7 +229,7 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
     } else if (menuItem.key?.startsWith('tray_proxy:') ?? false) {
       final decoded = _decodeTrayProxyKey(menuItem.key!);
       if (decoded == null) return;
-      final (:groupTag, :proxyTag) = decoded;
+      final (groupTag, proxyTag) = decoded;
       loggy.debug('switching tray proxy, group: [$groupTag] - outbound: [$proxyTag]');
       await ref.read(proxyRepositoryProvider).selectProxy(groupTag, proxyTag).getOrElse((err) {
         loggy.warning('error selecting tray proxy', err);
