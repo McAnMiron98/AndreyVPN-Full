@@ -3,10 +3,10 @@ import 'dart:io';
 
 import 'package:archive/archive_io.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:hiddify/core/directories/directories_provider.dart';
-import 'package:hiddify/core/notification/in_app_notification_controller.dart';
-import 'package:hiddify/utils/custom_loggers.dart';
-import 'package:hiddify/utils/platform_utils.dart';
+import 'package:andreyvpn/core/directories/directories_provider.dart';
+import 'package:andreyvpn/core/notification/in_app_notification_controller.dart';
+import 'package:andreyvpn/utils/custom_loggers.dart';
+import 'package:andreyvpn/utils/platform_utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';

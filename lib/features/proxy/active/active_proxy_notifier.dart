@@ -1,17 +1,17 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
-import 'package:hiddify/core/haptic/haptic_service.dart';
-import 'package:hiddify/core/preferences/general_preferences.dart';
-import 'package:hiddify/core/utils/throttler.dart';
-import 'package:hiddify/features/connection/notifier/connection_notifier.dart';
-import 'package:hiddify/features/proxy/data/proxy_data_providers.dart';
-import 'package:hiddify/features/proxy/model/ip_info_entity.dart' as oldipinfo;
-import 'package:hiddify/features/proxy/model/proxy_failure.dart';
-import 'package:hiddify/hiddifycore/generated/v2/hcore/hcore.pb.dart';
-import 'package:hiddify/hiddifycore/init_signal.dart';
-import 'package:hiddify/utils/riverpod_utils.dart';
-import 'package:hiddify/utils/utils.dart';
+import 'package:andreyvpn/core/haptic/haptic_service.dart';
+import 'package:andreyvpn/core/preferences/general_preferences.dart';
+import 'package:andreyvpn/core/utils/throttler.dart';
+import 'package:andreyvpn/features/connection/notifier/connection_notifier.dart';
+import 'package:andreyvpn/features/proxy/data/proxy_data_providers.dart';
+import 'package:andreyvpn/features/proxy/model/ip_info_entity.dart' as oldipinfo;
+import 'package:andreyvpn/features/proxy/model/proxy_failure.dart';
+import 'package:andreyvpn/hiddifycore/generated/v2/hcore/hcore.pb.dart';
+import 'package:andreyvpn/hiddifycore/init_signal.dart';
+import 'package:andreyvpn/utils/riverpod_utils.dart';
+import 'package:andreyvpn/utils/utils.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'active_proxy_notifier.g.dart';

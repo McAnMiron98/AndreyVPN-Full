@@ -111,7 +111,7 @@ jobs:
           # - platform: ios
           #   os: macos-15
           #   aarch: universal
-          #   filename: hiddify-ios
+          #   filename: andreyvpn-ios
           #   targets: ipa
     runs-on: ${{ matrix.os }}
     steps:

@@ -2,10 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
-import 'package:hiddify/core/model/directories.dart';
-import 'package:hiddify/core/model/environment.dart';
-import 'package:hiddify/utils/custom_loggers.dart';
-import 'package:hiddify/utils/platform_utils.dart';
+import 'package:andreyvpn/core/model/directories.dart';
+import 'package:andreyvpn/core/model/environment.dart';
+import 'package:andreyvpn/utils/custom_loggers.dart';
+import 'package:andreyvpn/utils/platform_utils.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';

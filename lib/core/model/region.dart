@@ -1,4 +1,4 @@
-import 'package:hiddify/core/localization/translations.dart';
+import 'package:andreyvpn/core/localization/translations.dart';
 
 enum Region {
   ir,

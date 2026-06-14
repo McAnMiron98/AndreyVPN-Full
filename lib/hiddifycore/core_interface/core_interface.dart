@@ -1,6 +1,6 @@
-import 'package:hiddify/core/model/directories.dart';
-import 'package:hiddify/hiddifycore/generated/v2/hcore/hcore_service.pbgrpc.dart';
-import 'package:hiddify/singbox/model/core_status.dart';
+import 'package:andreyvpn/core/model/directories.dart';
+import 'package:andreyvpn/hiddifycore/generated/v2/hcore/hcore_service.pbgrpc.dart';
+import 'package:andreyvpn/singbox/model/core_status.dart';
 
 class CoreInterface {
   late CoreClient fgClient;

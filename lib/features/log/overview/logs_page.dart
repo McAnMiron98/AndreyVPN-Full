@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
-import 'package:hiddify/core/directories/directories_provider.dart';
-import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
+import 'package:andreyvpn/core/directories/directories_provider.dart';
+import 'package:andreyvpn/core/router/dialog/dialog_notifier.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class LogsPage extends HookConsumerWidget {

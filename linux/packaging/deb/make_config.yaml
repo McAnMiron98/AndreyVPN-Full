@@ -1,7 +1,7 @@
 display_name: Hiddify
-package_name: hiddify
+package_name: andreyvpn
 maintainer:
-  name: hiddify
+  name: andreyvpn
   email: linux@hiddify.com
 
 priority: optional

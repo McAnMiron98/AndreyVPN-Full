@@ -2,9 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
-import 'package:hiddify/core/directories/directories_provider.dart';
-import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
-import 'package:hiddify/features/settings/notifier/full_backup_notifier.dart';
+import 'package:andreyvpn/core/directories/directories_provider.dart';
+import 'package:andreyvpn/core/router/dialog/dialog_notifier.dart';
+import 'package:andreyvpn/features/settings/notifier/full_backup_notifier.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:path/path.dart' as p;
 

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'package:flutter/services.dart';
-import 'package:hiddify/bootstrap.dart';
-import 'package:hiddify/core/model/environment.dart';
-import 'package:hiddify/features/settings/notifier/full_backup_notifier.dart';
+import 'package:andreyvpn/bootstrap.dart';
+import 'package:andreyvpn/core/model/environment.dart';
+import 'package:andreyvpn/features/settings/notifier/full_backup_notifier.dart';
 
 Future<void> main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();

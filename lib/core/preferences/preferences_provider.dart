@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:hiddify/core/directories/directories_provider.dart';
-import 'package:hiddify/utils/platform_utils.dart';
+import 'package:andreyvpn/core/directories/directories_provider.dart';
+import 'package:andreyvpn/utils/platform_utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:loggy/loggy.dart';
 import 'package:path/path.dart' as p;
