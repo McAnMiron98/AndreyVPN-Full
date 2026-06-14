@@ -21,6 +21,7 @@ internal sealed class UpdaterArgs
     public string ExePath { get; init; } = "";
     public string ZipUrl { get; init; } = "";
     public int AppPid { get; init; }
+    public string LogDir { get; init; } = "";
 
     public static UpdaterArgs Parse(string[] args)
     {
@@ -40,6 +41,7 @@ internal sealed class UpdaterArgs
             ExePath = dict.GetValueOrDefault("--exePath") ?? "",
             ZipUrl = dict.GetValueOrDefault("--zipUrl") ?? "",
             AppPid = int.TryParse(dict.GetValueOrDefault("--appPid"), out var pid) ? pid : 0,
+            LogDir = dict.GetValueOrDefault("--logDir") ?? "",
         };
     }
 }
@@ -55,7 +57,9 @@ internal sealed class UpdaterForm : Form
     public UpdaterForm(UpdaterArgs args)
     {
         _args = args;
-        _logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AndreyVPN");
+        _logDir = !string.IsNullOrWhiteSpace(args.LogDir)
+            ? args.LogDir
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AndreyVPN");
         _logPath = Path.Combine(_logDir, "AndreyVPN-update.log");
 
         Text = "Обновление AndreyVPN";
@@ -100,6 +104,7 @@ internal sealed class UpdaterForm : Form
             Log($"ExePath={_args.ExePath}");
             Log($"ZipUrl={_args.ZipUrl}");
             Log($"AppPid={_args.AppPid}");
+            Log($"LogDir={_args.LogDir}");
 
             ValidateArgs();
 

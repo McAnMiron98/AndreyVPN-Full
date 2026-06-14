@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hiddify/core/directories/directories_provider.dart';
 import 'package:hiddify/core/localization/translations.dart';
 import 'package:hiddify/features/app_update/model/remote_version_entity.dart';
 import 'package:hiddify/features/app_update/notifier/app_update_notifier.dart';
@@ -47,9 +48,7 @@ class NewVersionDialog extends HookConsumerWidget with PresLogger {
     final tempUpdaterPath = '${tempDir.path}\\AndreyVPNUpdater.exe';
     await File(updaterPath).copy(tempUpdaterPath);
 
-    final localAppData = Platform.environment['LOCALAPPDATA'] ?? tempDir.path;
-    final logDir = Directory('$localAppData\\AndreyVPN');
-    await logDir.create(recursive: true);
+    final logDir = await AppDirectories.getLogsDirectory();
     final launcherLogPath = '${logDir.path}\\AndreyVPN-updater-launcher.log';
 
     Future<void> launcherLog(String message) async {
@@ -63,6 +62,7 @@ class NewVersionDialog extends HookConsumerWidget with PresLogger {
     await launcherLog('ZipUrl=${newVersion.url}');
     await launcherLog('UpdaterPath=$updaterPath');
     await launcherLog('TempUpdaterPath=$tempUpdaterPath');
+    await launcherLog('LogDir=${logDir.path}');
 
     try {
       final process = await Process.start(
@@ -76,6 +76,8 @@ class NewVersionDialog extends HookConsumerWidget with PresLogger {
           newVersion.url,
           '--appPid',
           pid.toString(),
+          '--logDir',
+          logDir.path,
         ],
         mode: ProcessStartMode.detached,
         runInShell: false,

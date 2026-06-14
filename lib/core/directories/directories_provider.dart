@@ -104,7 +104,69 @@ class AppDirectories extends _$AppDirectories with InfraLogger {
     if (!await logsDir.exists()) {
       await logsDir.create(recursive: true);
     }
+    if (PlatformUtils.isWindows) {
+      await _moveLegacyUpdaterLogs(logsDir);
+    }
     return logsDir;
+  }
+
+  static Future<void> _moveLegacyUpdaterLogs(Directory logsDir) async {
+    try {
+      final localAppData = Platform.environment['LOCALAPPDATA'];
+      if (localAppData == null || localAppData.isEmpty) return;
+
+      final legacyDir = Directory(p.join(localAppData, 'AndreyVPN'));
+      if (!await legacyDir.exists()) return;
+
+      final cleanupLog = File(p.join(logsDir.path, 'andreyvpn_updater_cleanup.log'));
+      Future<void> log(String message) async {
+        await cleanupLog.writeAsString(
+          '[${DateTime.now().toIso8601String()}] $message\n',
+          mode: FileMode.append,
+          flush: true,
+        );
+      }
+
+      await log('legacy updater log directory found: ${legacyDir.path}');
+
+      const legacyLogNames = [
+        'AndreyVPN-update.log',
+        'AndreyVPN-updater-launcher.log',
+      ];
+
+      for (final name in legacyLogNames) {
+        final legacyFile = File(p.join(legacyDir.path, name));
+        if (!await legacyFile.exists()) continue;
+
+        final targetFile = File(p.join(logsDir.path, name));
+        if (await targetFile.exists()) {
+          await targetFile.writeAsString(
+            '\n--- moved from legacy AppData at ${DateTime.now().toIso8601String()} ---\n',
+            mode: FileMode.append,
+            flush: true,
+          );
+          await targetFile.writeAsString(
+            await legacyFile.readAsString(),
+            mode: FileMode.append,
+            flush: true,
+          );
+        } else {
+          await legacyFile.copy(targetFile.path);
+        }
+        await legacyFile.delete();
+        await log('moved legacy updater log: ${legacyFile.path} -> ${targetFile.path}');
+      }
+
+      final remaining = await legacyDir.list(followLinks: false).toList();
+      if (remaining.isEmpty) {
+        await legacyDir.delete();
+        await log('deleted empty legacy updater log directory: ${legacyDir.path}');
+      } else {
+        await log('legacy updater log directory kept because it is not empty: ${legacyDir.path}');
+      }
+    } catch (_) {
+      // Updater log cleanup must never block application startup.
+    }
   }
 
   static Future<void> _writePathDiagnostic({
