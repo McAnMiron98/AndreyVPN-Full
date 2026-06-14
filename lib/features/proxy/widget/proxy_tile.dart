@@ -19,58 +19,54 @@ class ProxyTile extends HookConsumerWidget with PresLogger {
     final theme = Theme.of(context);
     final countryTitle = _countryTitle(proxy);
     final cleanName = _cleanServerName(proxy.tagDisplay);
-    final details = _detailsLine(proxy, selected);
+    final title = _titleLine(countryTitle, cleanName, proxy.tagDisplay);
+    final details = _detailsSpans(theme, proxy, selected);
 
     return Card(
       elevation: 0,
-      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       color: selected ? theme.colorScheme.primaryContainer : theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         onLongPress: () async => await ref.read(dialogNotifierProvider.notifier).showProxyInfo(outboundInfo: proxy),
         child: Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(12, 10, 10, 10),
+          padding: const EdgeInsetsDirectional.fromSTEB(9, 7, 8, 7),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               IPCountryFlag(
                 countryCode: proxy.ipinfo.countryCode,
                 organization: proxy.ipinfo.org,
-                size: 42,
-                padding: const EdgeInsetsDirectional.only(end: 10, top: 2),
+                size: 34,
+                padding: const EdgeInsetsDirectional.only(end: 8),
               ),
               Expanded(
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      countryTitle,
+                      title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall?.copyWith(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         fontFamily: PlatformUtils.isWindows ? FontFamily.emoji : null,
                       ),
                     ),
                     const SizedBox(height: 3),
-                    Text(
-                      cleanName.isEmpty ? proxy.tagDisplay : cleanName,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontFamily: PlatformUtils.isWindows ? FontFamily.emoji : null,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      details,
+                    RichText(
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: selected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant,
-                        fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                      text: TextSpan(
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: selected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant,
+                          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                          fontFamily: PlatformUtils.isWindows ? FontFamily.emoji : null,
+                        ),
+                        children: details,
                       ),
                     ),
                   ],
@@ -83,39 +79,84 @@ class ProxyTile extends HookConsumerWidget with PresLogger {
     );
   }
 
-  String _detailsLine(OutboundInfo proxy, bool selected) {
-    final parts = <String>[];
+  String _titleLine(String countryTitle, String cleanName, String fallback) {
+    final name = cleanName.isEmpty ? fallback.trim() : cleanName;
+    if (name.isEmpty) return countryTitle;
+
+    final normalizedName = name.toLowerCase();
+    final normalizedCountry = countryTitle.toLowerCase();
+    if (normalizedName.contains(normalizedCountry) || countryTitle == 'Unknown country') {
+      return name;
+    }
+
+    return '$countryTitle • $name';
+  }
+
+  List<InlineSpan> _detailsSpans(ThemeData theme, OutboundInfo proxy, bool selected) {
+    final baseColor = selected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant;
+    final spans = <InlineSpan>[];
+
+    void addText(String text, {Color? color, FontWeight? weight}) {
+      if (spans.isNotEmpty) {
+        spans.add(TextSpan(text: ' • ', style: TextStyle(color: baseColor.withOpacity(0.72))));
+      }
+      spans.add(TextSpan(text: text, style: TextStyle(color: color ?? baseColor, fontWeight: weight)));
+    }
 
     if (selected) {
-      parts.add('✓ Подключен');
+      addText('✓ Подключен', weight: FontWeight.w700);
+    }
+
+    final transport = _transportHint(proxy);
+    if (transport.isNotEmpty) {
+      addText(transport);
     }
 
     final type = proxy.type.trim();
     if (type.isNotEmpty) {
-      parts.add(type.toUpperCase());
+      final upperType = type.toUpperCase();
+      if (transport.toUpperCase() != upperType) {
+        addText(upperType);
+      }
     }
 
-    final transport = _transportHint(proxy);
-    if (transport.isNotEmpty && transport.toUpperCase() != type.toUpperCase()) {
-      parts.add(transport);
-    }
-
-    if (proxy.isSecure && !parts.any((part) => part.toLowerCase().contains('tls') || part.toLowerCase().contains('reality'))) {
-      parts.add('Secure');
+    if (proxy.isSecure && !spans.any((span) => span.toPlainText().toLowerCase().contains('tls') || span.toPlainText().toLowerCase().contains('reality'))) {
+      addText('Secure');
     }
 
     if (proxy.urlTestDelay != 0) {
-      parts.add(proxy.urlTestDelay > 65000 ? 'ping ×' : '${proxy.urlTestDelay} ms');
+      if (proxy.urlTestDelay > 65000) {
+        addText('ping ×', color: _pingColor(theme, null), weight: FontWeight.w700);
+      } else {
+        addText('${proxy.urlTestDelay} ms', color: _pingColor(theme, proxy.urlTestDelay), weight: FontWeight.w700);
+      }
     }
 
     if (proxy.isGroup) {
       final selectedTag = _cleanServerName(proxy.groupSelectedTagDisplay.trim());
       if (selectedTag.isNotEmpty) {
-        parts.add('Balancer: $selectedTag');
+        addText('Balancer: $selectedTag');
       }
     }
 
-    return parts.join(' • ');
+    if (spans.isEmpty) {
+      addText('—');
+    }
+
+    return spans;
+  }
+
+  Color _pingColor(ThemeData theme, int? ping) {
+    if (ping == null || ping > 65000) {
+      return Colors.red.shade600;
+    }
+    if (ping <= 60) {
+      return Colors.green.shade600;
+    }
+    if (ping <= 150) {
+      return Colors.amber.shade700;
+    }
+    return Colors.red.shade600;
   }
 
   String _countryTitle(OutboundInfo proxy) {
