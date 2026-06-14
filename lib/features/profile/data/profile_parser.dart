@@ -5,6 +5,7 @@ import 'package:dartx/dartx.dart';
 import 'package:dio/dio.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:andreyvpn/core/db/db.dart';
+import 'package:andreyvpn/core/directories/directories_provider.dart';
 import 'package:andreyvpn/core/http_client/dio_http_client.dart';
 import 'package:andreyvpn/features/profile/data/profile_data_mapper.dart';
 import 'package:andreyvpn/features/profile/model/profile_entity.dart';
@@ -65,6 +66,10 @@ class ProfileParser {
             httpClient: _httpClient,
             cancelToken: CancelToken(),
             ref: _ref,
+          );
+          await normalizeJsonArraySubscriptionIfNeeded(
+            tempFilePath: tempFilePath,
+            source: 'local',
           );
         }, (_, __) => ProfileFailure.unexpected())
         .flatMap((_) => TaskEither.fromEither(populateHeaders(content: content)))
@@ -170,6 +175,10 @@ class ProfileParser {
       cancelToken: cancelToken ?? CancelToken(),
       ref: _ref,
     );
+    await normalizeJsonArraySubscriptionIfNeeded(
+      tempFilePath: tempFilePath,
+      source: url,
+    );
     // fixing headers before return
     return rs.headers.map.map((key, value) {
       if (value.length == 1) return MapEntry(key, value.first);
@@ -234,6 +243,195 @@ class ProfileParser {
       final newContent = results.join("\n");
       await File(tempFilePath).writeAsString(newContent);
     }
+  }
+
+
+  static Future<void> normalizeJsonArraySubscriptionIfNeeded({
+    required String tempFilePath,
+    required String source,
+  }) async {
+    final file = File(tempFilePath);
+    if (!await file.exists()) return;
+
+    final rawContent = await file.readAsString();
+    final content = rawContent.trim();
+    if (!content.startsWith('[')) return;
+
+    Future<void> log(String message) async {
+      try {
+        final logsDir = await AppDirectories.getLogsDirectory();
+        final logFile = File('${logsDir.path}${Platform.pathSeparator}andreyvpn_json_subscription.log');
+        await logFile.writeAsString(
+          '[${DateTime.now().toIso8601String()}] $message\n',
+          mode: FileMode.append,
+          flush: true,
+        );
+      } catch (_) {
+        // JSON subscription diagnostics must never block profile parsing.
+      }
+    }
+
+    try {
+      final decoded = jsonDecode(content);
+      if (decoded is! List) return;
+
+      final links = <String>[];
+      var skipped = 0;
+      for (final item in decoded) {
+        if (item is! Map) {
+          skipped++;
+          continue;
+        }
+        final converted = _convertJsonSubscriptionEntryToLinks(item.cast<String, dynamic>());
+        if (converted.isEmpty) {
+          skipped++;
+        } else {
+          links.addAll(converted);
+        }
+      }
+
+      if (links.isEmpty) {
+        await log('JSON array detected but no supported proxy links were generated; source=$source; items=${decoded.length}');
+        return;
+      }
+
+      await file.writeAsString(links.join('\n'));
+      await log('JSON array subscription converted to proxy links; source=$source; items=${decoded.length}; links=${links.length}; skipped=$skipped');
+    } catch (err, st) {
+      await log('JSON array subscription conversion failed; source=$source; error=$err; stack=$st');
+    }
+  }
+
+  static List<String> _convertJsonSubscriptionEntryToLinks(Map<String, dynamic> entry) {
+    final remarks = entry['remarks']?.toString().trim();
+    final outbounds = entry['outbounds'];
+    if (outbounds is! List) return const [];
+
+    final proxyOutbounds = outbounds
+        .whereType<Map>()
+        .map((e) => e.cast<String, dynamic>())
+        .where((outbound) {
+          final protocol = outbound['protocol']?.toString().toLowerCase();
+          return protocol == 'vless';
+        })
+        .toList();
+
+    final links = <String>[];
+    for (final outbound in proxyOutbounds) {
+      final link = _convertVlessOutboundToUri(
+        outbound,
+        baseRemark: remarks,
+        includeTagInRemark: proxyOutbounds.length > 1,
+      );
+      if (link != null) links.add(link);
+    }
+    return links;
+  }
+
+  static String? _convertVlessOutboundToUri(
+    Map<String, dynamic> outbound, {
+    required String? baseRemark,
+    required bool includeTagInRemark,
+  }) {
+    final settings = outbound['settings'];
+    if (settings is! Map) return null;
+    final vnext = settings['vnext'];
+    if (vnext is! List || vnext.isEmpty || vnext.first is! Map) return null;
+
+    final server = (vnext.first as Map).cast<String, dynamic>();
+    final users = server['users'];
+    if (users is! List || users.isEmpty || users.first is! Map) return null;
+
+    final user = (users.first as Map).cast<String, dynamic>();
+    final id = user['id']?.toString();
+    final address = server['address']?.toString();
+    final port = server['port'];
+    if (id == null || id.isEmpty || address == null || address.isEmpty || port == null) return null;
+
+    final streamSettings = (outbound['streamSettings'] is Map)
+        ? (outbound['streamSettings'] as Map).cast<String, dynamic>()
+        : <String, dynamic>{};
+
+    final network = streamSettings['network']?.toString();
+    final security = streamSettings['security']?.toString();
+    final query = <String, String>{
+      'encryption': user['encryption']?.toString() ?? 'none',
+    };
+
+    if (user['flow'] != null && user['flow'].toString().isNotEmpty) {
+      query['flow'] = user['flow'].toString();
+    }
+    if (network != null && network.isNotEmpty) {
+      query['type'] = network;
+    }
+    if (security != null && security.isNotEmpty) {
+      query['security'] = security;
+    }
+
+    if (streamSettings['tlsSettings'] is Map) {
+      final tls = (streamSettings['tlsSettings'] as Map).cast<String, dynamic>();
+      if (tls['serverName'] != null && tls['serverName'].toString().isNotEmpty) {
+        query['sni'] = tls['serverName'].toString();
+      }
+      if (tls['fingerprint'] != null && tls['fingerprint'].toString().isNotEmpty) {
+        query['fp'] = tls['fingerprint'].toString();
+      }
+      if (tls['alpn'] is List && (tls['alpn'] as List).isNotEmpty) {
+        query['alpn'] = (tls['alpn'] as List).map((e) => e.toString()).join(',');
+      }
+      if (tls['allowInsecure'] == true) {
+        query['allowInsecure'] = '1';
+      }
+    }
+
+    if (streamSettings['realitySettings'] is Map) {
+      final reality = (streamSettings['realitySettings'] as Map).cast<String, dynamic>();
+      if (reality['serverName'] != null && reality['serverName'].toString().isNotEmpty) {
+        query['sni'] = reality['serverName'].toString();
+      }
+      if (reality['fingerprint'] != null && reality['fingerprint'].toString().isNotEmpty) {
+        query['fp'] = reality['fingerprint'].toString();
+      }
+      if (reality['publicKey'] != null && reality['publicKey'].toString().isNotEmpty) {
+        query['pbk'] = reality['publicKey'].toString();
+      }
+      if (reality['shortId'] != null && reality['shortId'].toString().isNotEmpty) {
+        query['sid'] = reality['shortId'].toString();
+      }
+      if (reality['spiderX'] != null && reality['spiderX'].toString().isNotEmpty) {
+        query['spx'] = reality['spiderX'].toString();
+      }
+    }
+
+    final xhttpSettings = streamSettings['xhttpSettings'];
+    if (xhttpSettings is Map) {
+      final xhttp = xhttpSettings.cast<String, dynamic>();
+      if (xhttp['host'] != null && xhttp['host'].toString().isNotEmpty) {
+        query['host'] = xhttp['host'].toString();
+      }
+      if (xhttp['path'] != null && xhttp['path'].toString().isNotEmpty) {
+        query['path'] = xhttp['path'].toString();
+      }
+      if (xhttp['mode'] != null && xhttp['mode'].toString().isNotEmpty) {
+        query['mode'] = xhttp['mode'].toString();
+      }
+    }
+
+    final tag = outbound['tag']?.toString();
+    final remarkParts = <String>[
+      if (baseRemark != null && baseRemark.isNotEmpty) baseRemark,
+      if (includeTagInRemark && tag != null && tag.isNotEmpty) tag,
+    ];
+    final remark = remarkParts.isEmpty ? 'VLESS' : remarkParts.join(' ');
+
+    return Uri(
+      scheme: 'vless',
+      userInfo: id,
+      host: address,
+      port: int.tryParse(port.toString()),
+      queryParameters: query,
+      fragment: remark,
+    ).toString();
   }
 
   static Either<ProfileFailure, Map<String, dynamic>> populateHeaders({
