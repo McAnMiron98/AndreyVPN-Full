@@ -27,7 +27,6 @@ Future<SharedPreferences> sharedPreferences(Ref ref) async {
     sharedPreferences = await SharedPreferences.getInstance();
     if (PlatformUtils.isWindows) {
       await _mirrorPreferencesToPortable(sharedPreferences);
-      await _cleanupLegacyAppDataArtifacts();
       unawaited(_delayedPortablePreferencesSync(sharedPreferences));
     }
   } catch (e) {
@@ -53,7 +52,6 @@ Future<SharedPreferences> sharedPreferences(Ref ref) async {
   }
   if (PlatformUtils.isWindows) {
     await _mirrorPreferencesToPortable(sharedPreferences);
-    await _cleanupLegacyAppDataArtifacts();
     unawaited(_delayedPortablePreferencesSync(sharedPreferences));
   }
   return sharedPreferences;
@@ -190,7 +188,6 @@ Future<void> _delayedPortablePreferencesSync(SharedPreferences preferences) asyn
   ]) {
     await Future<void>.delayed(delay);
     await _mirrorPreferencesToPortable(preferences);
-    await _cleanupLegacyAppDataArtifacts();
   }
 }
 
@@ -216,42 +213,6 @@ Future<void> _mirrorPreferencesToPortable(SharedPreferences preferences) async {
     );
   } catch (e) {
     await _writePreferencesDiagnostic('mirror preferences error: $e');
-  }
-}
-
-Future<void> _cleanupLegacyAppDataArtifacts() async {
-  try {
-    if (!PlatformUtils.isWindows) return;
-    final appData = Platform.environment['APPDATA'];
-    if (appData == null || appData.isEmpty) return;
-
-    final legacyDir = Directory(p.join(appData, 'AndreyVPN', 'AndreyVPN'));
-    if (!await legacyDir.exists()) return;
-
-    for (final name in <String>[
-      'andreyvpn_restart_diagnostic.log',
-      'shared_preferences.json',
-    ]) {
-      final file = File(p.join(legacyDir.path, name));
-      if (await file.exists()) {
-        try {
-          await file.delete();
-          await _writePreferencesDiagnostic('deleted legacy artifact: ${file.path}');
-        } catch (e) {
-          await _writePreferencesDiagnostic('failed to delete legacy artifact ${file.path}: $e');
-        }
-      }
-    }
-
-    try {
-      final remaining = await legacyDir.list().isEmpty;
-      if (remaining) {
-        await legacyDir.delete();
-        await _writePreferencesDiagnostic('deleted empty legacy directory: ${legacyDir.path}');
-      }
-    } catch (_) {}
-  } catch (e) {
-    await _writePreferencesDiagnostic('legacy cleanup error: $e');
   }
 }
 

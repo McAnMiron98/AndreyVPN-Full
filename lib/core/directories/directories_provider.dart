@@ -46,7 +46,6 @@ class AppDirectories extends _$AppDirectories with InfraLogger {
         usedPortable: hasPortableAccess,
         reason: hasPortableAccess ? 'portable directory is writable' : 'portable directory is not writable, fallback to application support',
       );
-      await _cleanupLegacyAppDataArtifacts();
     } else {
       final baseDir = await getApplicationSupportDirectory();
       final workingDir = Platform.isAndroid ? await getExternalStorageDirectory() : baseDir;
@@ -79,8 +78,7 @@ class AppDirectories extends _$AppDirectories with InfraLogger {
           usedPortable: true,
           reason: 'database directory uses portable directory',
         );
-        await _cleanupLegacyAppDataArtifacts();
-        return portableDir;
+          return portableDir;
       }
       final fallbackDir = await getApplicationSupportDirectory();
       await _writePathDiagnostic(
@@ -130,30 +128,6 @@ class AppDirectories extends _$AppDirectories with InfraLogger {
     }
   }
 
-
-  static Future<void> _cleanupLegacyAppDataArtifacts() async {
-    try {
-      if (!PlatformUtils.isWindows) return;
-      final appData = Platform.environment['APPDATA'];
-      if (appData == null || appData.isEmpty) return;
-
-      final legacyDir = Directory(p.join(appData, 'AndreyVPN', 'AndreyVPN'));
-      if (!await legacyDir.exists()) return;
-
-      for (final name in <String>[
-        'andreyvpn_restart_diagnostic.log',
-      ]) {
-        final file = File(p.join(legacyDir.path, name));
-        if (await file.exists()) {
-          try {
-            await file.delete();
-          } catch (_) {}
-        }
-      }
-    } catch (_) {
-      // Legacy cleanup must never block startup.
-    }
-  }
 
   static Future<bool> checkDirectoryAccess(Directory dir) async {
     final testFile = File(p.join(dir.path, 'access_test.txt'));
