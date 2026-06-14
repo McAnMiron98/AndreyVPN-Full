@@ -1,195 +1,103 @@
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:fpdart/fpdart.dart';
-import 'package:gap/gap.dart';
-import 'package:hiddify/core/localization/translations.dart';
-import 'package:hiddify/core/model/failures.dart';
-import 'package:hiddify/core/preferences/general_preferences.dart';
-import 'package:hiddify/core/widget/adaptive_icon.dart';
-import 'package:hiddify/features/log/data/log_data_providers.dart';
-import 'package:hiddify/features/log/model/log_level.dart';
-import 'package:hiddify/features/log/overview/logs_overview_notifier.dart';
-import 'package:hiddify/utils/utils.dart';
-import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:sliver_tools/sliver_tools.dart';
+import 'dart:io';
 
-class LogsPage extends HookConsumerWidget with PresLogger {
+import 'package:flutter/material.dart';
+import 'package:gap/gap.dart';
+import 'package:hiddify/core/directories/directories_provider.dart';
+import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+
+class LogsPage extends HookConsumerWidget {
   const LogsPage({super.key});
+
+  Future<Directory> _logsDirectory() async {
+    return AppDirectories.getLogsDirectory();
+  }
+
+  Future<void> _openLogsFolder(BuildContext context) async {
+    try {
+      final logsDir = await _logsDirectory();
+      if (Platform.isWindows) {
+        await Process.start('explorer.exe', [logsDir.path], mode: ProcessStartMode.detached);
+      } else if (Platform.isMacOS) {
+        await Process.start('open', [logsDir.path], mode: ProcessStartMode.detached);
+      } else if (Platform.isLinux) {
+        await Process.start('xdg-open', [logsDir.path], mode: ProcessStartMode.detached);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось открыть папку логов: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _clearLogsFolder(BuildContext context) async {
+    try {
+      final logsDir = await _logsDirectory();
+      var deleted = 0;
+      if (await logsDir.exists()) {
+        await for (final entity in logsDir.list(followLinks: false)) {
+          try {
+            await entity.delete(recursive: true);
+            deleted++;
+          } catch (_) {
+            // Best-effort cleanup: locked files are skipped.
+          }
+        }
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Логи очищены. Удалено элементов: $deleted')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось очистить логи: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final t = ref.watch(translationsProvider).requireValue;
-    final state = ref.watch(logsOverviewNotifierProvider);
-    final notifier = ref.watch(logsOverviewNotifierProvider.notifier);
-
-    final debug = ref.watch(debugModeNotifierProvider);
-    final pathResolver = ref.watch(logPathResolverProvider);
-
-    final filterController = useTextEditingController(text: state.filter);
-
-    final List<PopupMenuEntry> popupButtons = debug || PlatformUtils.isDesktop
-        ? [
-            PopupMenuItem(
-              child: Text(t.pages.logs.shareCoreLogs),
-              onTap: () async {
-                await UriUtils.tryShareOrLaunchFile(
-                  Uri.parse(pathResolver.coreFile().path),
-                  fileOrDir: pathResolver.directory.uri,
-                );
-              },
-            ),
-            PopupMenuItem(
-              child: Text(t.pages.logs.shareAppLogs),
-              onTap: () async {
-                await UriUtils.tryShareOrLaunchFile(
-                  Uri.parse(pathResolver.appFile().path),
-                  fileOrDir: pathResolver.directory.uri,
-                );
-              },
-            ),
-          ]
-        : [];
-
     return Scaffold(
       appBar: AppBar(
-        title: Text(t.pages.logs.title),
-        actions: [
-          if (state.paused)
-            IconButton(
-              onPressed: notifier.resume,
-              icon: const Icon(FluentIcons.play_20_regular),
-              tooltip: t.common.resume,
-              iconSize: 20,
-            )
-          else
-            IconButton(
-              onPressed: notifier.pause,
-              icon: const Icon(FluentIcons.pause_20_regular),
-              tooltip: t.common.pause,
-              iconSize: 20,
-            ),
-          IconButton(
-            onPressed: notifier.clear,
-            icon: const Icon(FluentIcons.delete_lines_20_regular),
-            tooltip: t.common.clear,
-            iconSize: 20,
-          ),
-          if (popupButtons.isNotEmpty)
-            PopupMenuButton(
-              icon: Icon(AdaptiveIcon(context).more),
-              itemBuilder: (context) {
-                return popupButtons;
-              },
-            ),
-          const Gap(8),
-        ],
+        title: const Text('Логи'),
       ),
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return <Widget>[
-            SliverOverlapAbsorber(
-              handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
-              sliver: MultiSliver(
-                children: [
-                  // NestedAppBar(
-                  //   forceElevated: innerBoxIsScrolled,
-                  // ),
-                  SliverPinnedHeader(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        child: Row(
-                          children: [
-                            Flexible(
-                              child: TextFormField(
-                                controller: filterController,
-                                onChanged: notifier.filterMessage,
-                                decoration: InputDecoration(isDense: true, hintText: t.common.filter),
-                              ),
-                            ),
-                            const Gap(16),
-                            DropdownButton<Option<LogLevel>>(
-                              value: optionOf(state.levelFilter),
-                              onChanged: (v) {
-                                if (v == null) return;
-                                notifier.filterLevel(v.toNullable());
-                              },
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
-                              borderRadius: BorderRadius.circular(4),
-                              items: [
-                                DropdownMenuItem(value: none(), child: Text(t.common.all)),
-                                ...LogLevel.choices.map((e) => DropdownMenuItem(value: some(e), child: Text(e.name))),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            child: Text(
+              r'Диагностические логи AndreyVPN хранятся в папке andreyvpn_data\logs.',
             ),
-          ];
-        },
-        body: Builder(
-          builder: (context) {
-            return CustomScrollView(
-              primary: false,
-              reverse: true,
-              slivers: <Widget>[
-                switch (state.logs) {
-                  AsyncData(value: final logs) => SliverList.builder(
-                    itemCount: logs.length,
-                    itemBuilder: (context, index) {
-                      final log = logs[index];
-                      return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (log.level != null)
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        log.level!.name.toUpperCase(),
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.labelMedium?.copyWith(color: log.level!.color),
-                                      ),
-                                      if (log.time != null)
-                                        Text(log.time!.toString(), style: Theme.of(context).textTheme.labelSmall),
-                                    ],
-                                  ),
-                                Text(extractMessage(log.message), style: Theme.of(context).textTheme.bodySmall),
-                              ],
-                            ),
-                          ),
-                          if (index != 0) const Divider(indent: 16, endIndent: 16, height: 4),
-                        ],
-                      );
-                    },
-                  ),
-                  AsyncError(:final error) => SliverErrorBodyPlaceholder(t.presentShortError(error)),
-                  _ => const SliverLoadingBodyPlaceholder(),
-                },
-                SliverOverlapInjector(handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context)),
-              ],
-            );
-          },
-        ),
+          ),
+          const Gap(8),
+          ListTile(
+            leading: const Icon(Icons.folder_open_rounded),
+            title: const Text('Открыть папку логов'),
+            subtitle: const Text(r'Открыть andreyvpn_data\logs'),
+            onTap: () async => _openLogsFolder(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_sweep_rounded),
+            title: const Text('Очистить логи'),
+            subtitle: const Text('Удалить только содержимое папки logs'),
+            onTap: () async {
+              final shouldClear = await ref.read(dialogNotifierProvider.notifier).showConfirmation(
+                    title: 'Очистить логи',
+                    message: 'Будет удалено только содержимое папки логов. Профили, настройки и бэкапы не изменятся.',
+                  );
+              if (shouldClear && context.mounted) {
+                await _clearLogsFolder(context);
+              }
+            },
+          ),
+        ],
       ),
     );
   }
-}
-
-String extractMessage(String message) {
-  final parts = message.split(' ');
-  return parts.length <= 2 ? parts.last : parts.sublist(2).join(' ');
 }
