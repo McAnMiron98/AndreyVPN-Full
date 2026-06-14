@@ -79,9 +79,9 @@ class ActiveProxyFooter extends ConsumerWidget with InfraLogger {
                     label: t.pages.proxies.activeProxy,
                     child: Text(
                       // getRealOutboundTag(activeProxy),
-                      activeProxy.tagDisplay,
+                      _cleanActiveProxyName(activeProxy.tagDisplay),
                       style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -114,6 +114,13 @@ class ActiveProxyFooter extends ConsumerWidget with InfraLogger {
       ),
     );
   }
+}
+
+String _cleanActiveProxyName(String value) {
+  return value
+      .trim()
+      .replaceFirst(RegExp(r'^(?:[\u{1F1E6}-\u{1F1FF}]{2}\s*)+', unicode: true), '')
+      .trim();
 }
 
 String getRealOutboundTag(OutboundInfo group) {
