@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:andreyvpn/core/model/constants.dart';
 import 'package:andreyvpn/features/connection/model/connection_status.dart';
 import 'package:andreyvpn/features/connection/notifier/connection_notifier.dart';
 import 'package:andreyvpn/features/proxy/active/active_proxy_notifier.dart';
+import 'package:andreyvpn/features/proxy/data/proxy_data_providers.dart';
 import 'package:andreyvpn/features/settings/data/config_option_repository.dart';
 import 'package:andreyvpn/features/window/notifier/window_notifier.dart';
 import 'package:andreyvpn/gen/assets.gen.dart';
@@ -51,10 +53,10 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
 
     await trayManager.setIcon(_trayIconPath(connection), isTemplate: PlatformUtils.isMacOS);
     if (!PlatformUtils.isLinux) await trayManager.setToolTip(_trayTooltip(connection, urlTestDelay, t));
-    await trayManager.setContextMenu(_trayMenu(connection, serviceMode, t));
+    await trayManager.setContextMenu(await _trayMenu(connection, serviceMode, t));
   }
 
-  Menu _trayMenu(ConnectionStatus connection, ServiceMode serviceMode, Translations t) => Menu(
+  Future<Menu> _trayMenu(ConnectionStatus connection, ServiceMode serviceMode, Translations t) async => Menu(
     items: [
       if (PlatformUtils.isLinux) ...[MenuItem(key: 'dashboard', label: t.common.dashboard), MenuItem.separator()],
       MenuItem(
@@ -67,6 +69,9 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
         },
         disabled: connection.isSwitching,
       ),
+      if (connection is Connected) ...[
+        await _serverSwitchMenuItem(),
+      ],
       MenuItem.submenu(
         label: t.pages.settings.inbound.serviceMode,
         icon: Assets.images.trayIconIco,
@@ -82,6 +87,93 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
       MenuItem(key: 'quit', label: t.common.quit),
     ],
   );
+
+  Future<MenuItem> _serverSwitchMenuItem() async {
+    final items = <MenuItem>[];
+    try {
+      final groupEither = await ref.read(proxyRepositoryProvider).watchProxies().first.timeout(const Duration(seconds: 2));
+      final group = groupEither.getOrElse((err) {
+        loggy.warning('error loading tray proxy list', err);
+        return null;
+      });
+
+      if (group != null) {
+        final proxies = group.items.where(_isTraySwitchableProxy).toList()
+          ..sort((a, b) {
+            final ai = _pingSortValue(a.urlTestDelay);
+            final bi = _pingSortValue(b.urlTestDelay);
+            final delayCompare = ai.compareTo(bi);
+            if (delayCompare != 0) return delayCompare;
+            return _trayProxyName(a).compareTo(_trayProxyName(b));
+          });
+
+        for (final proxy in proxies) {
+          items.add(
+            MenuItem.checkbox(
+              checked: group.selected == proxy.tag,
+              key: _trayProxyKey(group.tag, proxy.tag),
+              label: '${_trayProxyName(proxy)} — ${_trayPingLabel(proxy.urlTestDelay)}',
+            ),
+          );
+        }
+      }
+    } catch (error, stackTrace) {
+      loggy.warning('error building tray server switch menu', error, stackTrace);
+    }
+
+    if (items.isEmpty) {
+      items.add(MenuItem(key: 'tray_proxy_empty', label: 'Нет доступных серверов', disabled: true));
+    }
+
+    return MenuItem.submenu(
+      key: 'tray_proxy_menu',
+      label: 'Сменить сервер',
+      submenu: Menu(items: items),
+    );
+  }
+
+  bool _isTraySwitchableProxy(OutboundInfo proxy) {
+    if (proxy.isGroup) return false;
+    final tag = proxy.tag.trim().toLowerCase();
+    final name = proxy.tagDisplay.trim().toLowerCase();
+    return tag != 'lowest' && tag != 'balance' && name != 'lowest' && name != 'balance';
+  }
+
+  int _pingSortValue(int delay) {
+    if (delay <= 0 || delay > 65000) return 1 << 30;
+    return delay;
+  }
+
+  String _trayProxyName(OutboundInfo proxy) {
+    final rawName = proxy.tagDisplay.trim().isNotEmpty ? proxy.tagDisplay.trim() : proxy.tag.trim();
+    final name = rawName
+        .replaceFirst(RegExp(r'^(?:[\u{1F1E6}-\u{1F1FF}]{2}\s*)+', unicode: true), '')
+        .replaceFirst(RegExp(r'^\s*[-–—|•]+\s*'), '')
+        .trim();
+    return name.isEmpty ? rawName : name;
+  }
+
+  String _trayPingLabel(int delay) {
+    if (delay <= 0 || delay > 65000) return 'ping —';
+    return '$delay ms';
+  }
+
+  String _trayProxyKey(String groupTag, String proxyTag) {
+    String encodePart(String value) => base64Url.encode(utf8.encode(value));
+    return 'tray_proxy:${encodePart(groupTag)}:${encodePart(proxyTag)}';
+  }
+
+  (String groupTag, String proxyTag)? _decodeTrayProxyKey(String key) {
+    final parts = key.split(':');
+    if (parts.length != 3 || parts.first != 'tray_proxy') return null;
+    try {
+      String decodePart(String value) => utf8.decode(base64Url.decode(value));
+      return (decodePart(parts[1]), decodePart(parts[2]));
+    } catch (error, stackTrace) {
+      loggy.warning('error decoding tray proxy key: [$key]', error, stackTrace);
+      return null;
+    }
+  }
 
   String _trayIconPath(ConnectionStatus status) {
     final isDarkMode = WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark;
@@ -134,7 +226,18 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
       await ref.read(connectionNotifierProvider.notifier).toggleConnection();
     } else if (menuItem.key == 'quit') {
       await ref.read(windowNotifierProvider.notifier).exit();
-    } else {
+    } else if (menuItem.key?.startsWith('tray_proxy:') ?? false) {
+      final decoded = _decodeTrayProxyKey(menuItem.key!);
+      if (decoded == null) return;
+      final (:groupTag, :proxyTag) = decoded;
+      loggy.debug('switching tray proxy, group: [$groupTag] - outbound: [$proxyTag]');
+      await ref.read(proxyRepositoryProvider).selectProxy(groupTag, proxyTag).getOrElse((err) {
+        loggy.warning('error selecting tray proxy', err);
+        throw err;
+      }).run();
+      ref.invalidate(activeProxyNotifierProvider);
+      await _initializeTray();
+    } else if (menuItem.key != null && ServiceMode.values.any((mode) => mode.name == menuItem.key)) {
       final newMode = ServiceMode.values.byName(menuItem.key!);
       loggy.debug("switching service mode: [$newMode]");
       await ref.read(ConfigOptions.serviceMode.notifier).update(newMode);
