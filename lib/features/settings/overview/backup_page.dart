@@ -6,6 +6,7 @@ import 'package:hiddify/core/directories/directories_provider.dart';
 import 'package:hiddify/core/router/dialog/dialog_notifier.dart';
 import 'package:hiddify/features/settings/notifier/full_backup_notifier.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 class BackupPage extends HookConsumerWidget {
   const BackupPage({super.key});
@@ -19,10 +20,10 @@ class BackupPage extends HookConsumerWidget {
 
   File _restartDiagnosticFile() {
     if (Platform.isWindows) {
-      final portableDir = AppDirectories.getPortableDirectory();
-      return File('${portableDir.path}${Platform.pathSeparator}andreyvpn_restart_diagnostic.log');
+      final logsDir = Directory(p.join(AppDirectories.getPortableDirectory().path, 'logs'));
+      return File(p.join(logsDir.path, 'andreyvpn_restart_diagnostic.log'));
     }
-    return File('${Directory.systemTemp.path}${Platform.pathSeparator}andreyvpn_restart_diagnostic.log');
+    return File(p.join(Directory.systemTemp.path, 'andreyvpn_restart_diagnostic.log'));
   }
 
   void _appendRestartLog(String message) {
@@ -105,6 +106,57 @@ class BackupPage extends HookConsumerWidget {
     exit(0);
   }
 
+
+
+  Future<Directory> _logsDirectory() async {
+    return AppDirectories.getLogsDirectory();
+  }
+
+  Future<void> _openLogsFolder(BuildContext context) async {
+    try {
+      final logsDir = await _logsDirectory();
+      if (Platform.isWindows) {
+        await Process.start('explorer.exe', [logsDir.path], mode: ProcessStartMode.detached);
+      } else if (Platform.isMacOS) {
+        await Process.start('open', [logsDir.path], mode: ProcessStartMode.detached);
+      } else if (Platform.isLinux) {
+        await Process.start('xdg-open', [logsDir.path], mode: ProcessStartMode.detached);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось открыть папку логов: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _clearLogsFolder(BuildContext context) async {
+    try {
+      final logsDir = await _logsDirectory();
+      var deleted = 0;
+      if (await logsDir.exists()) {
+        await for (final entity in logsDir.list(followLinks: false)) {
+          try {
+            await entity.delete(recursive: true);
+            deleted++;
+          } catch (_) {}
+        }
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Логи очищены. Удалено элементов: $deleted')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось очистить логи: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _showRestartPrompt(BuildContext context) async {
     final shouldRestart = await showDialog<bool>(
       context: context,
@@ -171,6 +223,27 @@ class BackupPage extends HookConsumerWidget {
                 if (imported && context.mounted) {
                   await _showRestartPrompt(context);
                 }
+              }
+            },
+          ),
+          const Divider(height: 24),
+          ListTile(
+            leading: const Icon(Icons.folder_open_rounded),
+            title: const Text('Открыть папку логов'),
+            subtitle: const Text(r'Открыть andreyvpn_data\logs'),
+            onTap: () async => _openLogsFolder(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_sweep_rounded),
+            title: const Text('Очистить логи'),
+            subtitle: const Text('Удалить только содержимое папки logs'),
+            onTap: () async {
+              final shouldClear = await ref.read(dialogNotifierProvider.notifier).showConfirmation(
+                    title: 'Очистить логи',
+                    message: 'Будет удалено только содержимое папки логов. Профили, настройки и бэкапы не изменятся.',
+                  );
+              if (shouldClear && context.mounted) {
+                await _clearLogsFolder(context);
               }
             },
           ),

@@ -165,11 +165,8 @@ Future<File?> _legacyPreferencesFile() async {
 Future<void> _writePreferencesDiagnostic(String message) async {
   try {
     if (!PlatformUtils.isWindows) return;
-    final portableDir = AppDirectories.getPortableDirectory();
-    if (!await portableDir.exists()) {
-      await portableDir.create(recursive: true);
-    }
-    final file = File(p.join(portableDir.path, 'andreyvpn_preferences_diagnostic.log'));
+    final logsDir = await AppDirectories.getLogsDirectory();
+    final file = File(p.join(logsDir.path, 'andreyvpn_preferences_diagnostic.log'));
     await file.writeAsString(
       '[${DateTime.now().toIso8601String()}] $message\n',
       mode: FileMode.append,

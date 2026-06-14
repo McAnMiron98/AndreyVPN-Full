@@ -36,7 +36,8 @@ class FullBackupNotifier with AppLogger {
       final baseDir = await AppDirectories.getDatabaseDirectory();
       final pendingFile = File(p.join(baseDir.path, 'andreyvpn_pending_restore.json'));
       final pendingRoot = Directory(p.join(baseDir.path, 'andreyvpn_pending_restore'));
-      diagnosticFile = File(p.join(baseDir.path, 'andreyvpn_pending_restore_diagnostic.log'));
+      final logsDir = await AppDirectories.getLogsDirectory();
+      diagnosticFile = File(p.join(logsDir.path, 'andreyvpn_pending_restore_diagnostic.log'));
 
       diag('baseDir: ${baseDir.path}');
       diag('pendingFile: ${pendingFile.path}');
@@ -242,6 +243,7 @@ class FullBackupNotifier with AppLogger {
         name == 'box.log' ||
         name == 'goroutine-start.log' ||
         name == 'andreyvpn_pending_restore' ||
+        name == 'logs' ||
         name == 'andreyvpn_pending_restore.json' ||
         name == 'andreyvpn_pending_restore_diagnostic.log' ||
         name == 'pending_restore.json' ||
@@ -285,7 +287,7 @@ class FullBackupNotifier with AppLogger {
 
       final manifest = <String, dynamic>{
         'app': 'AndreyVPN',
-        'appVersion': '0.8.17+57',
+        'appVersion': '0.9.3+64',
         'type': 'full_backup',
         'format': 2,
         'diagnostic': true,
@@ -385,12 +387,12 @@ class FullBackupNotifier with AppLogger {
 
       await _cleanupExternalLevelDbDataFolder(outputZipPath, diagnostics);
 
-      final outputDiagnosticPath = _diagnosticPathForBackup(outputZipPath);
+      final outputDiagnosticPath = await _diagnosticPathForBackup(outputZipPath);
       await File(outputDiagnosticPath).writeAsString(diagnostics.toString(), flush: true);
-      diag('external diagnostic log written: $outputDiagnosticPath');
+      diag('diagnostic log written to logs folder: $outputDiagnosticPath');
 
       await tempRoot.delete(recursive: true);
-      notification.showSuccessToast('Полный бэкап экспортирован. Диагностика сохранена рядом с архивом');
+      notification.showSuccessToast('Полный бэкап экспортирован. Диагностика сохранена в папке логов');
       return true;
     } catch (e, st) {
       diagnostics.writeln('[${DateTime.now().toIso8601String()}] ERROR: $e');
@@ -486,7 +488,7 @@ class FullBackupNotifier with AppLogger {
       }
 
       final backupFile = File(result.files.single.path!);
-      outputDiagnosticPath = _diagnosticPathForImport(backupFile.path);
+      outputDiagnosticPath = await _diagnosticPathForImport(backupFile.path);
       diag('selected backup zip: ${backupFile.path}');
       diag('import diagnostic path: $outputDiagnosticPath');
 
@@ -552,7 +554,7 @@ class FullBackupNotifier with AppLogger {
 
       final pendingManifest = <String, dynamic>{
         'app': 'AndreyVPN',
-        'appVersion': '0.8.17+57',
+        'appVersion': '0.9.3+64',
         'type': 'pending_restore',
         'format': 1,
         'createdAt': DateTime.now().toIso8601String(),
@@ -590,7 +592,7 @@ class FullBackupNotifier with AppLogger {
         diagnostics.writeln('[${DateTime.now().toIso8601String()}] tempRoot kept for diagnostics: ${tempRoot.path}');
       }
       await writeImportDiagnostics();
-      notification.showErrorToast('Не удалось импортировать полный бэкап. Если лог создан, он сохранён рядом с архивом');
+      notification.showErrorToast('Не удалось импортировать полный бэкап. Если лог создан, он сохранён в папке логов');
       return false;
     }
   }
@@ -798,6 +800,7 @@ class FullBackupNotifier with AppLogger {
         name == 'box.log' ||
         name == 'goroutine-start.log' ||
         name == 'andreyvpn_pending_restore' ||
+        name == 'logs' ||
         name == 'andreyvpn_pending_restore.json' ||
         name == 'andreyvpn_pending_restore_diagnostic.log' ||
         name == 'pending_restore.json' ||
@@ -832,16 +835,16 @@ class FullBackupNotifier with AppLogger {
     return '$path.zip';
   }
 
-  String _diagnosticPathForBackup(String backupPath) {
-    final dir = p.dirname(backupPath);
+  Future<String> _diagnosticPathForBackup(String backupPath) async {
+    final logsDir = await AppDirectories.getLogsDirectory();
     final nameWithoutExtension = p.basenameWithoutExtension(backupPath);
-    return p.join(dir, '${nameWithoutExtension}_diagnostic.log');
+    return p.join(logsDir.path, '${nameWithoutExtension}_backup_diagnostic.log');
   }
 
-  String _diagnosticPathForImport(String backupPath) {
-    final dir = p.dirname(backupPath);
+  Future<String> _diagnosticPathForImport(String backupPath) async {
+    final logsDir = await AppDirectories.getLogsDirectory();
     final nameWithoutExtension = p.basenameWithoutExtension(backupPath);
-    return p.join(dir, '${nameWithoutExtension}_import_diagnostic.log');
+    return p.join(logsDir.path, '${nameWithoutExtension}_import_diagnostic.log');
   }
 
 }

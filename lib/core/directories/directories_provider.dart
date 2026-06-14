@@ -99,6 +99,14 @@ class AppDirectories extends _$AppDirectories with InfraLogger {
     return Directory(p.join(exeDir.path, 'andreyvpn_data'));
   }
 
+  static Future<Directory> getLogsDirectory() async {
+    final logsDir = Directory(p.join(getPortableDirectory().path, 'logs'));
+    if (!await logsDir.exists()) {
+      await logsDir.create(recursive: true);
+    }
+    return logsDir;
+  }
+
   static Future<void> _writePathDiagnostic({
     required Directory selectedDir,
     required Directory portableDir,
@@ -106,7 +114,7 @@ class AppDirectories extends _$AppDirectories with InfraLogger {
     required String reason,
   }) async {
     try {
-      final diagnosticDir = usedPortable ? portableDir : selectedDir;
+      final diagnosticDir = PlatformUtils.isWindows ? await getLogsDirectory() : (usedPortable ? portableDir : selectedDir);
       if (!await diagnosticDir.exists()) {
         await diagnosticDir.create(recursive: true);
       }
