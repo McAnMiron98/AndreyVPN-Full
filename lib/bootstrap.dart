@@ -21,6 +21,7 @@ import 'package:andreyvpn/features/auto_start/notifier/auto_start_notifier.dart'
 import 'package:andreyvpn/features/log/data/log_data_providers.dart';
 import 'package:andreyvpn/features/profile/data/profile_data_providers.dart';
 import 'package:andreyvpn/features/profile/notifier/active_profile_notifier.dart';
+import 'package:andreyvpn/features/system_proxy/data/windows_system_proxy_recovery.dart';
 import 'package:andreyvpn/features/system_tray/notifier/system_tray_notifier.dart';
 import 'package:andreyvpn/features/window/notifier/window_notifier.dart';
 import 'package:andreyvpn/hiddifycore/hiddify_core_service_provider.dart';
@@ -62,6 +63,16 @@ Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async
       await container.read(sharedPreferencesProvider).requireValue.clear();
     }
   });
+
+  if (PlatformUtils.isWindows) {
+    await _safeInit(
+      "system proxy recovery",
+      () => WindowsSystemProxyRecovery(
+        sharedPreferences: container.read(sharedPreferencesProvider).requireValue,
+      ).cleanupStaleProxyOnStartup(),
+      timeout: 10000,
+    );
+  }
 
   final debug = container.read(debugModeNotifierProvider) || kDebugMode;
 

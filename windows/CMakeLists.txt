@@ -1,5 +1,12 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
+
+# CMake 4.2+ may warn in sentry-native when probing ASM with MSVC.
+# Opt into the modern policy when available to keep GitHub Actions logs clean.
+if(POLICY CMP0194)
+  cmake_policy(SET CMP0194 NEW)
+endif()
+
 project(andreyvpn LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
