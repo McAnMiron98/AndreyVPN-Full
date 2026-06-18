@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:andreyvpn/core/localization/translations.dart';
 import 'package:andreyvpn/core/model/constants.dart';
+import 'package:andreyvpn/core/win32_tray_focus_fix.dart';
 import 'package:andreyvpn/features/connection/model/connection_status.dart';
 import 'package:andreyvpn/features/connection/notifier/connection_notifier.dart';
 import 'package:andreyvpn/features/proxy/active/active_proxy_notifier.dart';
@@ -23,6 +24,8 @@ part 'system_tray_notifier.g.dart';
 @Riverpod(keepAlive: true)
 class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogger {
   bool listenerAdded = false;
+  bool _trayMenuOpening = false;
+  DateTime? _lastTrayRightMouseDownAt;
   @override
   Future<void> build() async {
     assert(PlatformUtils.isDesktop);
@@ -256,7 +259,32 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
 
   @override
   Future<void> onTrayIconRightMouseDown() async {
-    await trayManager.popUpContextMenu();
+    final now = DateTime.now();
+    final previousRightClickAt = _lastTrayRightMouseDownAt;
+    _lastTrayRightMouseDownAt = now;
+
+    if (_trayMenuOpening) {
+      loggy.debug('tray right click ignored: popup already opening');
+      return;
+    }
+
+    if (previousRightClickAt != null && now.difference(previousRightClickAt) < const Duration(milliseconds: 250)) {
+      loggy.debug('tray right click ignored: duplicate event deltaMs=${now.difference(previousRightClickAt).inMilliseconds}');
+      return;
+    }
+
+    _trayMenuOpening = true;
+    final foregroundFix = Win32TrayFocusFix.prepareForNativeTrayMenu(expectedTitle: Constants.appName);
+    loggy.debug('tray native popup start foregroundFix=[$foregroundFix]');
+    try {
+      await trayManager.popUpContextMenu();
+      final pumpNudge = Win32TrayFocusFix.postMenuMessagePumpNudge();
+      loggy.debug('tray native popup returned pumpNudge=[$pumpNudge]');
+    } catch (error, stackTrace) {
+      loggy.warning('tray native popup failed', error, stackTrace);
+    } finally {
+      _trayMenuOpening = false;
+    }
   }
 }
 
