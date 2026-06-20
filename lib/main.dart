@@ -5,7 +5,7 @@ import 'package:andreyvpn/bootstrap.dart';
 import 'package:andreyvpn/core/model/environment.dart';
 import 'package:andreyvpn/features/settings/notifier/full_backup_notifier.dart';
 
-Future<void> main() async {
+Future<void> main(List<String> arguments) async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   // final widgetsBinding = SentryWidgetsFlutterBinding.ensureInitialized();
   // debugPaintSizeEnabled = true;
@@ -17,5 +17,9 @@ Future<void> main() async {
     const SystemUiOverlayStyle(statusBarColor: Colors.transparent, systemNavigationBarColor: Colors.transparent),
   );
 
-  return await lazyBootstrap(widgetsBinding, Environment.dev);
+  return await lazyBootstrap(
+    widgetsBinding,
+    Environment.dev,
+    startupArguments: arguments,
+  );
 }

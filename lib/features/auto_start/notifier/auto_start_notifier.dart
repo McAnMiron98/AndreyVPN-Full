@@ -65,7 +65,10 @@ class AutoStartNotifier extends _$AutoStartNotifier with InfraLogger {
   Future<bool> _isEnabled() async {
     if (Platform.isWindows) {
       final taskEnabled = await _isWindowsScheduledTaskEnabled();
-      if (taskEnabled) return true;
+      if (taskEnabled) {
+        await _ensureWindowsScheduledTaskIsCurrent();
+        return true;
+      }
 
       try {
         final legacyEnabled = await launchAtStartup.isEnabled();
@@ -97,6 +100,24 @@ class AutoStartNotifier extends _$AutoStartNotifier with InfraLogger {
     return result.exitCode == 0;
   }
 
+  Future<void> _ensureWindowsScheduledTaskIsCurrent() async {
+    try {
+      final result = await Process.run(
+        'schtasks',
+        ['/Query', '/TN', _windowsTaskName, '/XML'],
+        runInShell: false,
+      ).timeout(const Duration(seconds: 5), onTimeout: () => ProcessResult(0, -1, '', 'timeout'));
+      final hasAutoStartArgument =
+          result.exitCode == 0 && result.stdout.toString().contains('--autostart');
+      if (hasAutoStartArgument) return;
+
+      await _logWindowsAutoStart('scheduled task is missing --autostart; updating task action');
+      await _enableWindowsScheduledTask();
+    } catch (error) {
+      await _logWindowsAutoStart('scheduled task action update failed: $error');
+    }
+  }
+
   Future<void> _enableWindowsScheduledTask() async {
     final executable = Platform.resolvedExecutable;
     await _logWindowsAutoStart('enable requested; executable=$executable');
@@ -122,7 +143,7 @@ class AutoStartNotifier extends _$AutoStartNotifier with InfraLogger {
         'HIGHEST',
         '/F',
         '/TR',
-        '"$executable"',
+        '"$executable" --autostart',
       ],
       runInShell: false,
     ).timeout(const Duration(seconds: 10), onTimeout: () => ProcessResult(0, -1, '', 'timeout'));

@@ -15,9 +15,10 @@ import 'package:andreyvpn/core/model/environment.dart';
 import 'package:andreyvpn/core/preferences/general_preferences.dart';
 import 'package:andreyvpn/core/preferences/preferences_migration.dart';
 import 'package:andreyvpn/core/preferences/preferences_provider.dart';
+import 'package:andreyvpn/core/startup/startup_launch.dart';
 import 'package:andreyvpn/features/app/widget/app.dart';
 import 'package:andreyvpn/features/auto_start/notifier/auto_start_notifier.dart';
-
+import 'package:andreyvpn/features/connection/notifier/connection_notifier.dart';
 import 'package:andreyvpn/features/log/data/log_data_providers.dart';
 import 'package:andreyvpn/features/profile/data/profile_data_providers.dart';
 import 'package:andreyvpn/features/profile/notifier/active_profile_notifier.dart';
@@ -30,7 +31,11 @@ import 'package:andreyvpn/utils/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
-Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async {
+Future<void> lazyBootstrap(
+  WidgetsBinding widgetsBinding,
+  Environment env, {
+  List<String> startupArguments = const [],
+}) async {
   if (!kIsWeb) {
     FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
   }
@@ -40,7 +45,13 @@ Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async
 
   final stopWatch = Stopwatch()..start();
 
-  final container = ProviderContainer(overrides: [environmentProvider.overrideWithValue(env)]);
+  final startupLaunch = StartupLaunch.fromArguments(startupArguments);
+  final container = ProviderContainer(
+    overrides: [
+      environmentProvider.overrideWithValue(env),
+      startupLaunchProvider.overrideWithValue(startupLaunch),
+    ],
+  );
 
   await _init("directories", () => container.read(appDirectoriesProvider.future));
   LoggerController.init(container.read(logPathResolverProvider).appFile().path);
@@ -79,12 +90,15 @@ Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async
   if (PlatformUtils.isDesktop) {
     await _init("window controller", () => container.read(windowNotifierProvider.future));
 
-    final silentStart = container.read(Preferences.silentStart);
-    Logger.bootstrap.debug("silent start [${silentStart ? "Enabled" : "Disabled"}]");
-    if (!silentStart) {
+    final remainHidden = startupLaunch.isAutoStart || container.read(Preferences.silentStart);
+    Logger.bootstrap.debug(
+      "remain hidden on start [${remainHidden ? "Enabled" : "Disabled"}], "
+      "auto start [${startupLaunch.isAutoStart ? "Yes" : "No"}]",
+    );
+    if (!remainHidden) {
       await container.read(windowNotifierProvider.notifier).show(focus: false);
     } else {
-      Logger.bootstrap.debug("silent start, remain hidden accessible via tray");
+      Logger.bootstrap.debug("remain hidden accessible via tray");
     }
     await _init("auto start service", () => container.read(autoStartNotifierProvider.future));
   }
@@ -129,10 +143,32 @@ Future<void> lazyBootstrap(WidgetsBinding widgetsBinding, Environment env) async
     ),
   );
 
+  if (startupLaunch.isAutoStart) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_connectAfterAutoStart(container));
+    });
+  }
+
   if (!kIsWeb) {
     FlutterNativeSplash.remove();
   }
   // SentryFlutter.s(DateTime.now().toUtc());
+}
+
+Future<void> _connectAfterAutoStart(ProviderContainer container) async {
+  try {
+    Logger.bootstrap.info("auto-start connection requested");
+    final activeProfile = await container.read(activeProfileProvider.future).timeout(const Duration(seconds: 10));
+    if (activeProfile == null) {
+      Logger.bootstrap.warning("auto-start connection skipped: no active profile");
+      return;
+    }
+
+    await container.read(connectionNotifierProvider.future).timeout(const Duration(seconds: 10));
+    await container.read(connectionNotifierProvider.notifier).connectFromAutoStart();
+  } catch (error, stackTrace) {
+    Logger.bootstrap.error("auto-start connection failed", error, stackTrace);
+  }
 }
 
 Future<T> _init<T>(String name, Future<T> Function() initializer, {int? timeout}) async {

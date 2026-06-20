@@ -73,7 +73,7 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
         disabled: connection.isSwitching,
       ),
       if (connection is Connected) ...[
-        await _serverSwitchMenuItem(),
+        await _serverSwitchMenuItem(t),
       ],
       MenuItem.submenu(
         label: t.pages.settings.inbound.serviceMode,
@@ -91,7 +91,7 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
     ],
   );
 
-  Future<MenuItem> _serverSwitchMenuItem() async {
+  Future<MenuItem> _serverSwitchMenuItem(Translations t) async {
     final items = <MenuItem>[];
     try {
       final groupEither = await ref.read(proxyRepositoryProvider).watchProxies().first.timeout(const Duration(seconds: 2));
@@ -127,6 +127,10 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
     if (items.isEmpty) {
       items.add(MenuItem(key: 'tray_proxy_empty', label: 'Нет доступных серверов', disabled: true));
     }
+    items.addAll([
+      MenuItem.separator(),
+      MenuItem(key: 'tray_proxy_url_test', label: t.pages.proxies.testDelay),
+    ]);
 
     return MenuItem.submenu(
       key: 'tray_proxy_menu',
@@ -229,6 +233,14 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
       await ref.read(connectionNotifierProvider.notifier).toggleConnection();
     } else if (menuItem.key == 'quit') {
       await ref.read(windowNotifierProvider.notifier).exit();
+    } else if (menuItem.key == 'tray_proxy_url_test') {
+      loggy.debug('testing tray proxy delays');
+      await ref.read(proxyRepositoryProvider).urlTest('select').getOrElse((err) {
+        loggy.warning('error testing tray proxy delays', err);
+        throw err;
+      }).run();
+      ref.invalidate(activeProxyNotifierProvider);
+      await _initializeTray();
     } else if (menuItem.key?.startsWith('tray_proxy:') ?? false) {
       final decoded = _decodeTrayProxyKey(menuItem.key!);
       if (decoded == null) return;

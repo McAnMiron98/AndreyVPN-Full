@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:andreyvpn/core/preferences/general_preferences.dart';
+import 'package:andreyvpn/core/startup/startup_launch.dart';
 import 'package:andreyvpn/features/connection/notifier/connection_notifier.dart';
 import 'package:andreyvpn/utils/utils.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -51,8 +52,8 @@ class WindowNotifier extends _$WindowNotifier with AppLogger {
     final position = ref.read(Preferences.windowPosition);
     final isWindowVisible = position != null && await checkWindowVisivility(position, size);
     loggy.debug("window state. position: ${isWindowVisible ? position : "centered"}");
-    final silentStart = ref.read(Preferences.silentStart);
-    loggy.debug("window state. silent start: ${silentStart ? "Enabled" : "Disabled"}");
+    final remainHidden = ref.read(startupLaunchProvider).isAutoStart || ref.read(Preferences.silentStart);
+    loggy.debug("window state. remain hidden: ${remainHidden ? "Enabled" : "Disabled"}");
 
     await windowManager.waitUntilReadyToShow(
       WindowOptions(size: size, center: !isWindowVisible, minimumSize: minimumWindowSize),
@@ -67,11 +68,11 @@ class WindowNotifier extends _$WindowNotifier with AppLogger {
       await windowManager.maximize();
       loggy.debug("restoring window to maximized state");
     }
-    if (!silentStart) {
+    if (!remainHidden) {
       await ref.read(windowNotifierProvider.notifier).show(focus: false);
       loggy.debug("showing app window on start");
     } else {
-      loggy.debug("silent start, remain hidden accessible via tray");
+      loggy.debug("remain hidden accessible via tray");
     }
   }
 

@@ -71,6 +71,16 @@ class ConnectionNotifier extends _$ConnectionNotifier with AppLogger {
     }
   }
 
+  Future<void> connectFromAutoStart() async {
+    if (state case AsyncData(value: Disconnected())) {
+      loggy.info("connecting automatically after Windows startup");
+      await ref.read(Preferences.startedByUser.notifier).update(true);
+      await _connect();
+    } else {
+      loggy.info("auto-start connection skipped: connection is not disconnected");
+    }
+  }
+
   Future<void> toggleConnection() async {
     final haptic = ref.read(hapticServiceProvider.notifier);
     if (state case AsyncError()) {
@@ -125,7 +135,7 @@ class ConnectionNotifier extends _$ConnectionNotifier with AppLogger {
   final _singleStart = SingleCall();
 
   Future<void> _connect() async {
-    _singleStart.run(
+    await _singleStart.run(
       () async {
         await _connectThrottled();
       },
@@ -180,12 +190,15 @@ Future<bool> serviceRunning(Ref ref) async {
 class SingleCall {
   bool _running = false;
 
-  Future<T> run<T>(Future<T> Function() task, {required T onIgnored}) async {
-    if (_running) return onIgnored;
+  Future<void> run(Future<void> Function() task, {required void Function() onIgnored}) async {
+    if (_running) {
+      onIgnored();
+      return;
+    }
 
     _running = true;
     try {
-      return await task();
+      await task();
     } finally {
       _running = false;
     }
