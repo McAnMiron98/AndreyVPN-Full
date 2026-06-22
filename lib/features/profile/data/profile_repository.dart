@@ -35,7 +35,9 @@ abstract interface class ProfileRepository {
   TaskEither<ProfileFailure, Unit> validateConfig(String path, String tempPath, String? profileOverride, bool debug);
   TaskEither<ProfileFailure, String> generateConfig(String id);
   TaskEither<ProfileFailure, String> getRawConfig(String id);
-  TaskEither<ProfileFailure, Unit> excludeServers(ProfileEntity profile, Set<String> serverTags);
+  List<HiddenServer> getHiddenServers(String profileId);
+  TaskEither<ProfileFailure, Unit> excludeServers(ProfileEntity profile, Iterable<HiddenServer> servers);
+  TaskEither<ProfileFailure, Unit> restoreServers(RemoteProfileEntity profile, Set<String> serverTags);
 }
 
 class ProfileRepositoryImpl with ExceptionHandler, InfraLogger implements ProfileRepository {
@@ -273,19 +275,52 @@ class ProfileRepositoryImpl with ExceptionHandler, InfraLogger implements Profil
   }
 
   @override
-  TaskEither<ProfileFailure, Unit> excludeServers(ProfileEntity profile, Set<String> serverTags) {
-    if (serverTags.isEmpty) return TaskEither.of(unit);
-    final exclusions = {..._serverExclusionStore.read(profile.id), ...serverTags};
-    return _rewriteValidatedConfig(profile.id, profile.profileOverride, exclusions, requireRemoval: true).flatMap(
+  List<HiddenServer> getHiddenServers(String profileId) => _serverExclusionStore.read(profileId);
+
+  @override
+  TaskEither<ProfileFailure, Unit> excludeServers(ProfileEntity profile, Iterable<HiddenServer> servers) {
+    final newServers = servers.toList();
+    if (newServers.isEmpty) return TaskEither.of(unit);
+
+    final exclusions = {
+      for (final server in _serverExclusionStore.read(profile.id)) server.tag: server,
+      for (final server in newServers) server.tag: server,
+    };
+    return _rewriteValidatedConfig(
+      profile.id,
+      profile.profileOverride,
+      exclusions.keys.toSet(),
+      requireRemoval: true,
+    ).flatMap(
       (_) => TaskEither.tryCatch(() async {
-        await _serverExclusionStore.write(profile.id, exclusions);
+        await _serverExclusionStore.write(profile.id, exclusions.values);
         return unit;
       }, ProfileFailure.unexpected),
     );
   }
 
+  @override
+  TaskEither<ProfileFailure, Unit> restoreServers(RemoteProfileEntity profile, Set<String> serverTags) {
+    if (serverTags.isEmpty) return TaskEither.of(unit);
+    return TaskEither.tryCatch(() async {
+      final previous = _serverExclusionStore.read(profile.id);
+      final remaining = previous.where((server) => !serverTags.contains(server.tag)).toList();
+      if (remaining.length == previous.length) return unit;
+
+      await _serverExclusionStore.write(profile.id, remaining);
+      final updateResult = await upsertRemote(profile.url).run();
+      return await updateResult.match(
+        (failure) async {
+          await _serverExclusionStore.write(profile.id, previous);
+          throw failure;
+        },
+        (_) async => unit,
+      );
+    }, (error, stackTrace) => error is ProfileFailure ? error : ProfileFailure.unexpected(error, stackTrace));
+  }
+
   TaskEither<ProfileFailure, Unit> _applyStoredServerExclusions(String profileId, String? profileOverride) {
-    final exclusions = _serverExclusionStore.read(profileId);
+    final exclusions = _serverExclusionStore.read(profileId).map((server) => server.tag).toSet();
     if (exclusions.isEmpty) return TaskEither.of(unit);
     return _rewriteValidatedConfig(profileId, profileOverride, exclusions);
   }

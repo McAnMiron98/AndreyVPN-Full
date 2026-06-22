@@ -15,6 +15,7 @@ import 'package:andreyvpn/features/profile/details/profile_details_page.dart';
 import 'package:andreyvpn/features/profile/notifier/active_profile_notifier.dart';
 import 'package:andreyvpn/features/profile/overview/profiles_page.dart';
 import 'package:andreyvpn/features/proxy/overview/proxies_overview_page.dart';
+import 'package:andreyvpn/features/proxy/overview/hidden_servers_page.dart';
 import 'package:andreyvpn/features/settings/overview/sections/dns_options_page.dart';
 import 'package:andreyvpn/features/settings/overview/sections/general_page.dart';
 import 'package:andreyvpn/features/settings/overview/sections/inbound_options_page.dart';
@@ -114,6 +115,14 @@ class RoutingConfigNotifier extends _$RoutingConfigNotifier {
                       path: '/proxies',
                       pageBuilder: (_, state) =>
                           customTransition(TransitionType.fade, state.pageKey, const ProxiesOverviewPage()),
+                      routes: <GoRoute>[
+                        GoRoute(
+                          name: 'hiddenServers',
+                          path: 'hidden',
+                          pageBuilder: (_, state) =>
+                              customTransition(TransitionType.slide, state.pageKey, const HiddenServersPage()),
+                        ),
+                      ],
                     ),
                     if (isMobileBreakpoint)
                       GoRoute(

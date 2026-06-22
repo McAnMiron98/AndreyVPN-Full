@@ -2,6 +2,35 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+class HiddenServer {
+  const HiddenServer({
+    required this.tag,
+    required this.name,
+    required this.hiddenAt,
+  });
+
+  final String tag;
+  final String name;
+  final DateTime hiddenAt;
+
+  factory HiddenServer.fromJson(Map<String, dynamic> json) {
+    final tag = json['tag']?.toString() ?? '';
+    final name = json['name']?.toString() ?? tag;
+    final hiddenAt = DateTime.tryParse(json['hiddenAt']?.toString() ?? '');
+    return HiddenServer(
+      tag: tag,
+      name: name.isEmpty ? tag : name,
+      hiddenAt: hiddenAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'tag': tag,
+    'name': name,
+    'hiddenAt': hiddenAt.toIso8601String(),
+  };
+}
+
 class ProfileServerExclusionStore {
   ProfileServerExclusionStore(this._preferences);
 
@@ -9,21 +38,40 @@ class ProfileServerExclusionStore {
 
   String _key(String profileId) => 'excluded_server_tags_$profileId';
 
-  Set<String> read(String profileId) {
+  List<HiddenServer> read(String profileId) {
     final raw = _preferences.getString(_key(profileId));
-    if (raw == null || raw.isEmpty) return <String>{};
+    if (raw == null || raw.isEmpty) return const [];
     try {
       final decoded = jsonDecode(raw);
-      if (decoded is! List) return <String>{};
-      return decoded.map((item) => item.toString()).where((tag) => tag.isNotEmpty).toSet();
+      if (decoded is! List) return const [];
+
+      final entries = <String, HiddenServer>{};
+      for (final item in decoded) {
+        final HiddenServer server;
+        if (item is Map) {
+          server = HiddenServer.fromJson(item.cast<String, dynamic>());
+        } else {
+          final tag = item.toString();
+          server = HiddenServer(
+            tag: tag,
+            name: tag,
+            hiddenAt: DateTime.fromMillisecondsSinceEpoch(0),
+          );
+        }
+        if (server.tag.isNotEmpty) entries[server.tag] = server;
+      }
+      return entries.values.toList()..sort((a, b) => a.name.compareTo(b.name));
     } catch (_) {
-      return <String>{};
+      return const [];
     }
   }
 
-  Future<void> write(String profileId, Set<String> tags) async {
-    final sortedTags = tags.toList()..sort();
-    await _preferences.setString(_key(profileId), jsonEncode(sortedTags));
+  Future<void> write(String profileId, Iterable<HiddenServer> servers) async {
+    final sortedServers = servers.toList()..sort((a, b) => a.name.compareTo(b.name));
+    await _preferences.setString(
+      _key(profileId),
+      jsonEncode(sortedServers.map((server) => server.toJson()).toList()),
+    );
   }
 
   Future<void> clear(String profileId) => _preferences.remove(_key(profileId));

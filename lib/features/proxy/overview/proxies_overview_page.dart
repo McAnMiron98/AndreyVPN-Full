@@ -4,6 +4,7 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
+import 'package:go_router/go_router.dart';
 import 'package:andreyvpn/core/localization/translations.dart';
 import 'package:andreyvpn/core/model/failures.dart';
 import 'package:andreyvpn/core/notification/in_app_notification_controller.dart';
@@ -25,6 +26,7 @@ class ProxiesOverviewPage extends HookConsumerWidget with PresLogger {
 
     final proxies = ref.watch(proxiesOverviewNotifierProvider);
     final sortBy = ref.watch(proxiesSortNotifierProvider);
+    final currentGroup = proxies.valueOrNull;
 
     // final selectActiveProxyMutation = useMutation(
     //   initialOnFailure: (error) => CustomToast.error(t.presentShortError(error)).show(context),
@@ -34,6 +36,12 @@ class ProxiesOverviewPage extends HookConsumerWidget with PresLogger {
       appBar: AppBar(
         title: Text(t.pages.proxies.title),
         actions: [
+          if (!editing.value)
+            TextButton.icon(
+              onPressed: () => context.pushNamed('hiddenServers'),
+              icon: const Icon(Icons.visibility_off_outlined),
+              label: const Text('Скрытые'),
+            ),
           if (!editing.value)
             TextButton.icon(
               onPressed: () {
@@ -69,7 +77,11 @@ class ProxiesOverviewPage extends HookConsumerWidget with PresLogger {
                       try {
                         await ref
                             .read(proxiesOverviewNotifierProvider.notifier)
-                            .deleteServers(selectedForRemoval.value);
+                            .deleteServers({
+                              for (final proxy in currentGroup?.items ?? const <OutboundInfo>[])
+                                if (selectedForRemoval.value.contains(proxy.tag))
+                                  proxy.tag: proxy.tagDisplay,
+                            });
                         selectedForRemoval.value = <String>{};
                         editing.value = false;
                         ref
