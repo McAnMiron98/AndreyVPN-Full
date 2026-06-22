@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:andreyvpn/core/model/directories.dart';
 import 'package:andreyvpn/core/model/environment.dart';
+import 'package:andreyvpn/core/logger/rotating_file_log.dart';
 import 'package:andreyvpn/utils/custom_loggers.dart';
 import 'package:andreyvpn/utils/platform_utils.dart';
 import 'package:path/path.dart' as p;
@@ -120,10 +121,10 @@ class AppDirectories extends _$AppDirectories with InfraLogger {
 
       final cleanupLog = File(p.join(logsDir.path, 'andreyvpn_updater_cleanup.log'));
       Future<void> log(String message) async {
-        await cleanupLog.writeAsString(
+        await RotatingFileLog.append(
+          cleanupLog,
           '[${DateTime.now().toIso8601String()}] $message\n',
-          mode: FileMode.append,
-          flush: true,
+          detailed: true,
         );
       }
 
@@ -140,15 +141,13 @@ class AppDirectories extends _$AppDirectories with InfraLogger {
 
         final targetFile = File(p.join(logsDir.path, name));
         if (await targetFile.exists()) {
-          await targetFile.writeAsString(
+          await RotatingFileLog.append(
+            targetFile,
             '\n--- moved from legacy AppData at ${DateTime.now().toIso8601String()} ---\n',
-            mode: FileMode.append,
-            flush: true,
           );
-          await targetFile.writeAsString(
+          await RotatingFileLog.append(
+            targetFile,
             await legacyFile.readAsString(),
-            mode: FileMode.append,
-            flush: true,
           );
         } else {
           await legacyFile.copy(targetFile.path);
@@ -192,7 +191,7 @@ class AppDirectories extends _$AppDirectories with InfraLogger {
         'Environment.isPortable: ${Environment.isPortable}',
         '',
       ];
-      await file.writeAsString(lines.join('\n'), mode: FileMode.append, flush: true);
+      await RotatingFileLog.append(file, lines.join('\n'), detailed: true);
     } catch (_) {
       // Path diagnostics must never block application startup.
     }

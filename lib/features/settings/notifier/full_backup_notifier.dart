@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:andreyvpn/core/directories/directories_provider.dart';
+import 'package:andreyvpn/core/app_info/app_info_provider.dart';
+import 'package:andreyvpn/core/logger/rotating_file_log.dart';
 import 'package:andreyvpn/core/notification/in_app_notification_controller.dart';
 import 'package:andreyvpn/utils/custom_loggers.dart';
 import 'package:andreyvpn/utils/platform_utils.dart';
@@ -45,14 +47,14 @@ class FullBackupNotifier with AppLogger {
 
       if (!await pendingFile.exists()) {
         diag('pending restore manifest missing, nothing to restore');
-        await diagnosticFile.writeAsString(diagnostics.toString(), flush: true);
+        await RotatingFileLog.write(diagnosticFile, diagnostics.toString(), detailed: true);
         return;
       }
 
       if (!await pendingRoot.exists()) {
         diag('pending restore directory missing, deleting manifest');
         await pendingFile.delete();
-        await diagnosticFile.writeAsString(diagnostics.toString(), flush: true);
+        await RotatingFileLog.write(diagnosticFile, diagnostics.toString(), detailed: true);
         return;
       }
 
@@ -110,13 +112,13 @@ class FullBackupNotifier with AppLogger {
       await pendingRoot.delete(recursive: true);
       diag('pending restore directory deleted');
 
-      await diagnosticFile.writeAsString(diagnostics.toString(), flush: true);
+      await RotatingFileLog.write(diagnosticFile, diagnostics.toString(), detailed: true);
     } catch (e, st) {
       diagnostics.writeln('[${DateTime.now().toIso8601String()}] ERROR: $e');
       diagnostics.writeln(st);
       if (diagnosticFile != null) {
         try {
-          await diagnosticFile.writeAsString(diagnostics.toString(), flush: true);
+          await RotatingFileLog.write(diagnosticFile, diagnostics.toString(), detailed: true);
         } catch (_) {}
       }
     }
@@ -287,7 +289,7 @@ class FullBackupNotifier with AppLogger {
 
       final manifest = <String, dynamic>{
         'app': 'AndreyVPN',
-        'appVersion': '0.9.3+64',
+        'appVersion': ref.read(appInfoProvider).requireValue.presentVersion,
         'type': 'full_backup',
         'format': 2,
         'diagnostic': true,
@@ -388,11 +390,15 @@ class FullBackupNotifier with AppLogger {
       await _cleanupExternalLevelDbDataFolder(outputZipPath, diagnostics);
 
       final outputDiagnosticPath = await _diagnosticPathForBackup(outputZipPath);
-      await File(outputDiagnosticPath).writeAsString(diagnostics.toString(), flush: true);
+      await RotatingFileLog.write(File(outputDiagnosticPath), diagnostics.toString(), detailed: true);
       diag('diagnostic log written to logs folder: $outputDiagnosticPath');
 
       await tempRoot.delete(recursive: true);
-      notification.showSuccessToast('Полный бэкап экспортирован. Диагностика сохранена в папке логов');
+      notification.showSuccessToast(
+        RotatingFileLog.detailedEnabled
+            ? 'Полный бэкап экспортирован. Диагностика сохранена в папке логов'
+            : 'Полный бэкап экспортирован',
+      );
       return true;
     } catch (e, st) {
       diagnostics.writeln('[${DateTime.now().toIso8601String()}] ERROR: $e');
@@ -473,7 +479,7 @@ class FullBackupNotifier with AppLogger {
       try {
         final diagnosticFile = File(outputDiagnosticPath!);
         await diagnosticFile.parent.create(recursive: true);
-        await diagnosticFile.writeAsString(diagnostics.toString(), flush: true);
+        await RotatingFileLog.write(diagnosticFile, diagnostics.toString(), detailed: true);
       } catch (e, st) {
         loggy.warning('error writing import diagnostic log', e, st);
       }
@@ -554,7 +560,7 @@ class FullBackupNotifier with AppLogger {
 
       final pendingManifest = <String, dynamic>{
         'app': 'AndreyVPN',
-        'appVersion': '0.9.3+64',
+        'appVersion': ref.read(appInfoProvider).requireValue.presentVersion,
         'type': 'pending_restore',
         'format': 1,
         'createdAt': DateTime.now().toIso8601String(),
@@ -592,7 +598,11 @@ class FullBackupNotifier with AppLogger {
         diagnostics.writeln('[${DateTime.now().toIso8601String()}] tempRoot kept for diagnostics: ${tempRoot.path}');
       }
       await writeImportDiagnostics();
-      notification.showErrorToast('Не удалось импортировать полный бэкап. Если лог создан, он сохранён в папке логов');
+      notification.showErrorToast(
+        RotatingFileLog.detailedEnabled
+            ? 'Не удалось импортировать полный бэкап. Диагностика сохранена в папке логов'
+            : 'Не удалось импортировать полный бэкап',
+      );
       return false;
     }
   }

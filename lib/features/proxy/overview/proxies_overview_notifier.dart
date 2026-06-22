@@ -9,6 +9,8 @@ import 'package:andreyvpn/core/utils/preferences_utils.dart';
 import 'package:andreyvpn/features/connection/notifier/connection_notifier.dart';
 import 'package:andreyvpn/features/proxy/data/proxy_data_providers.dart';
 import 'package:andreyvpn/features/proxy/model/proxy_failure.dart';
+import 'package:andreyvpn/features/profile/data/profile_data_providers.dart';
+import 'package:andreyvpn/features/profile/notifier/active_profile_notifier.dart';
 import 'package:andreyvpn/hiddifycore/generated/v2/hcore/hcore.pb.dart';
 import 'package:andreyvpn/hiddifycore/init_signal.dart';
 import 'package:andreyvpn/utils/riverpod_utils.dart';
@@ -227,5 +229,24 @@ class ProxiesOverviewNotifier extends _$ProxiesOverviewNotifier with AppLogger {
         throw err;
       }).run();
     }
+  }
+
+  Future<void> deleteServers(Set<String> serverTags) async {
+    if (serverTags.isEmpty) return;
+    final activeProfile = await ref.read(activeProfileProvider.future);
+    if (activeProfile == null) {
+      throw StateError('No active profile');
+    }
+
+    final repository = await ref.read(profileRepositoryProvider.future);
+    await repository.excludeServers(activeProfile, serverTags).match(
+      (error) {
+        loggy.error('error excluding servers from profile', error);
+        throw error;
+      },
+      (_) async {
+        await ref.read(connectionNotifierProvider.notifier).reconnect(activeProfile);
+      },
+    ).run();
   }
 }

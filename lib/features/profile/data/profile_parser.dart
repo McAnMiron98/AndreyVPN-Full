@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:andreyvpn/core/db/db.dart';
 import 'package:andreyvpn/core/directories/directories_provider.dart';
+import 'package:andreyvpn/core/logger/rotating_file_log.dart';
 import 'package:andreyvpn/core/http_client/dio_http_client.dart';
 import 'package:andreyvpn/features/profile/data/profile_data_mapper.dart';
 import 'package:andreyvpn/features/profile/model/profile_entity.dart';
@@ -261,10 +262,10 @@ class ProfileParser {
       try {
         final logsDir = await AppDirectories.getLogsDirectory();
         final logFile = File('${logsDir.path}${Platform.pathSeparator}andreyvpn_json_subscription.log');
-        await logFile.writeAsString(
+        await RotatingFileLog.append(
+          logFile,
           '[${DateTime.now().toIso8601String()}] $message\n',
-          mode: FileMode.append,
-          flush: true,
+          detailed: true,
         );
       } catch (_) {
         // JSON subscription diagnostics must never block profile parsing.

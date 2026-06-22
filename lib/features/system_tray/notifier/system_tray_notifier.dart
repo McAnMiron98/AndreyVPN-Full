@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -25,7 +26,14 @@ part 'system_tray_notifier.g.dart';
 class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogger {
   bool listenerAdded = false;
   bool _trayMenuOpening = false;
+  bool _trayInitialized = false;
   DateTime? _lastTrayRightMouseDownAt;
+  Timer? _trayRefreshTimer;
+  final List<Completer<void>> _trayRefreshWaiters = [];
+  ({ConnectionStatus connection, ServiceMode serviceMode, Translations t, int urlTestDelay})? _pendingTrayState;
+  OutboundGroup? _cachedTrayGroup;
+  DateTime? _cachedTrayGroupAt;
+
   @override
   Future<void> build() async {
     assert(PlatformUtils.isDesktop);
@@ -33,10 +41,10 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
       trayManager.addListener(this);
       listenerAdded = true;
     }
-    await _initializeTray();
+    await _initializeTray(immediate: !_trayInitialized);
   }
 
-  Future<void> _initializeTray() async {
+  Future<void> _initializeTray({bool immediate = false}) async {
     final t = await ref.watch(translationsProvider.future);
     final urlTestDelay = await ref
         .watch(activeProxyNotifierProvider.future)
@@ -54,6 +62,58 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
         .then((connection) => _modifyConnectionStatus(connection, urlTestDelay));
     final serviceMode = ref.watch(ConfigOptions.serviceMode);
 
+    await _scheduleTrayRefresh(
+      (connection: connection, serviceMode: serviceMode, t: t, urlTestDelay: urlTestDelay),
+      immediate: immediate,
+    );
+  }
+
+  Future<void> _scheduleTrayRefresh(
+    ({ConnectionStatus connection, ServiceMode serviceMode, Translations t, int urlTestDelay}) trayState, {
+    required bool immediate,
+  }) {
+    _pendingTrayState = trayState;
+    final completer = Completer<void>();
+    _trayRefreshWaiters.add(completer);
+    _trayRefreshTimer?.cancel();
+
+    if (immediate) {
+      unawaited(_flushTrayRefresh());
+    } else {
+      _trayRefreshTimer = Timer(const Duration(milliseconds: 350), () {
+        unawaited(_flushTrayRefresh());
+      });
+    }
+    return completer.future;
+  }
+
+  Future<void> _flushTrayRefresh() async {
+    _trayRefreshTimer?.cancel();
+    _trayRefreshTimer = null;
+    final trayState = _pendingTrayState;
+    _pendingTrayState = null;
+    if (trayState == null) return;
+
+    try {
+      await _applyTrayState(trayState);
+      _trayInitialized = true;
+      for (final waiter in _trayRefreshWaiters) {
+        if (!waiter.isCompleted) waiter.complete();
+      }
+    } catch (error, stackTrace) {
+      for (final waiter in _trayRefreshWaiters) {
+        if (!waiter.isCompleted) waiter.completeError(error, stackTrace);
+      }
+      rethrow;
+    } finally {
+      _trayRefreshWaiters.clear();
+    }
+  }
+
+  Future<void> _applyTrayState(
+    ({ConnectionStatus connection, ServiceMode serviceMode, Translations t, int urlTestDelay}) trayState,
+  ) async {
+    final (:connection, :serviceMode, :t, :urlTestDelay) = trayState;
     await trayManager.setIcon(_trayIconPath(connection), isTemplate: PlatformUtils.isMacOS);
     if (!PlatformUtils.isLinux) await trayManager.setToolTip(_trayTooltip(connection, urlTestDelay, t));
     await trayManager.setContextMenu(await _trayMenu(connection, serviceMode, t));
@@ -94,11 +154,27 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
   Future<MenuItem> _serverSwitchMenuItem(Translations t) async {
     final items = <MenuItem>[];
     try {
-      final groupEither = await ref.read(proxyRepositoryProvider).watchProxies().first.timeout(const Duration(seconds: 2));
-      final group = groupEither.getOrElse((err) {
-        loggy.warning('error loading tray proxy list', err);
-        return null;
-      });
+      final now = DateTime.now();
+      OutboundGroup? group;
+      if (_cachedTrayGroup != null &&
+          _cachedTrayGroupAt != null &&
+          now.difference(_cachedTrayGroupAt!) < const Duration(seconds: 1)) {
+        group = _cachedTrayGroup;
+      } else {
+        final groupEither = await ref
+            .read(proxyRepositoryProvider)
+            .watchProxies()
+            .first
+            .timeout(const Duration(milliseconds: 900));
+        group = groupEither.getOrElse((err) {
+          loggy.warning('error loading tray proxy list', err);
+          return _cachedTrayGroup;
+        });
+        if (group != null) {
+          _cachedTrayGroup = group;
+          _cachedTrayGroupAt = now;
+        }
+      }
 
       if (group != null) {
         final proxies = group.items.where(_isTraySwitchableProxy).toList()
@@ -240,7 +316,8 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
         throw err;
       }).run();
       ref.invalidate(activeProxyNotifierProvider);
-      await _initializeTray();
+      _invalidateTrayProxyCache();
+      await _initializeTray(immediate: true);
     } else if (menuItem.key?.startsWith('tray_proxy:') ?? false) {
       final decoded = _decodeTrayProxyKey(menuItem.key!);
       if (decoded == null) return;
@@ -251,12 +328,18 @@ class SystemTrayNotifier extends _$SystemTrayNotifier with TrayListener, AppLogg
         throw err;
       }).run();
       ref.invalidate(activeProxyNotifierProvider);
-      await _initializeTray();
+      _invalidateTrayProxyCache();
+      await _initializeTray(immediate: true);
     } else if (menuItem.key != null && ServiceMode.values.any((mode) => mode.name == menuItem.key)) {
       final newMode = ServiceMode.values.byName(menuItem.key!);
       loggy.debug("switching service mode: [$newMode]");
       await ref.read(ConfigOptions.serviceMode.notifier).update(newMode);
     }
+  }
+
+  void _invalidateTrayProxyCache() {
+    _cachedTrayGroup = null;
+    _cachedTrayGroupAt = null;
   }
 
   @override

@@ -1,7 +1,9 @@
 // ignore_for_file: avoid_print
 
+import 'dart:async';
 import 'dart:io';
 
+import 'package:andreyvpn/core/logger/rotating_file_log.dart';
 import 'package:loggy/loggy.dart';
 
 class ConsolePrinter extends LoggyPrinter {
@@ -48,22 +50,38 @@ class FileLogPrinter extends LoggyPrinter {
 
   final File _logFile;
   final LogLevel minLevel;
-
-  late final _sink = _logFile.openWrite(mode: FileMode.writeOnly);
+  StringBuffer _buffer = StringBuffer();
+  Timer? _flushTimer;
 
   @override
   void onLog(LogRecord record) {
     final time = record.time.toIso8601String().split('T')[1];
-    _sink.writeln("$time - $record");
+    _buffer.writeln("$time - $record");
     if (record.error != null) {
-      _sink.writeln(record.error);
+      _buffer.writeln(record.error);
     }
     if (record.stackTrace != null) {
-      _sink.writeln(record.stackTrace);
+      _buffer.writeln(record.stackTrace);
+    }
+
+    if (_buffer.length >= 64 * 1024) {
+      _flush();
+    } else {
+      _flushTimer ??= Timer(const Duration(milliseconds: 500), _flush);
     }
   }
 
   void dispose() {
-    _sink.close();
+    _flushTimer?.cancel();
+    _flush();
+  }
+
+  void _flush() {
+    _flushTimer?.cancel();
+    _flushTimer = null;
+    if (_buffer.isEmpty) return;
+    final content = _buffer.toString();
+    _buffer = StringBuffer();
+    unawaited(RotatingFileLog.append(_logFile, content).catchError((_) {}));
   }
 }

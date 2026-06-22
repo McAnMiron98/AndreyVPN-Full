@@ -11,6 +11,7 @@ import 'package:andreyvpn/core/directories/directories_provider.dart';
 import 'package:andreyvpn/core/localization/translations.dart';
 import 'package:andreyvpn/core/logger/logger.dart';
 import 'package:andreyvpn/core/logger/logger_controller.dart';
+import 'package:andreyvpn/core/logger/rotating_file_log.dart';
 import 'package:andreyvpn/core/model/environment.dart';
 import 'package:andreyvpn/core/preferences/general_preferences.dart';
 import 'package:andreyvpn/core/preferences/preferences_migration.dart';
@@ -30,6 +31,7 @@ import 'package:andreyvpn/riverpod_observer.dart';
 import 'package:andreyvpn/utils/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:path/path.dart' as p;
 
 Future<void> lazyBootstrap(
   WidgetsBinding widgetsBinding,
@@ -40,6 +42,11 @@ Future<void> lazyBootstrap(
     FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
   }
   LoggerController.preInit();
+  if (PlatformUtils.isWindows) {
+    await RotatingFileLog.initializeDetailedFlag(
+      File(p.join(AppDirectories.getPortableDirectory().path, 'shared_preferences.json')),
+    );
+  }
   FlutterError.onError = Logger.logFlutterError;
   WidgetsBinding.instance.platformDispatcher.onError = Logger.logPlatformDispatcherError;
 
@@ -86,6 +93,7 @@ Future<void> lazyBootstrap(
   }
 
   final debug = container.read(debugModeNotifierProvider) || kDebugMode;
+  RotatingFileLog.detailedEnabled = container.read(Preferences.detailedDiagnostics);
 
   if (PlatformUtils.isDesktop) {
     await _init("window controller", () => container.read(windowNotifierProvider.future));
@@ -103,6 +111,7 @@ Future<void> lazyBootstrap(
     await _init("auto start service", () => container.read(autoStartNotifierProvider.future));
   }
   await _init("logs repository", () => container.read(logRepositoryProvider.future));
+  await RotatingFileLog.rotateIfNeeded(container.read(logPathResolverProvider).coreFile());
   await _init("logger controller", () => LoggerController.postInit(debug));
 
   Logger.bootstrap.info(appInfo.format());

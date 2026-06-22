@@ -110,6 +110,11 @@ abstract class Preferences {
     mapFrom: ActionsAtClosing.values.byName,
     mapTo: (value) => value.name,
   );
+
+  static final detailedDiagnostics = PreferencesNotifier.create<bool, bool>(
+    "detailed_diagnostics",
+    false,
+  );
 }
 
 @Riverpod(keepAlive: true)

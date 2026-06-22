@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:andreyvpn/core/directories/directories_provider.dart';
+import 'package:andreyvpn/core/logger/rotating_file_log.dart';
 import 'package:andreyvpn/utils/utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -21,10 +22,10 @@ class WindowsSystemProxyRecovery with InfraLogger {
       try {
         final logsDir = await AppDirectories.getLogsDirectory();
         final logFile = File('${logsDir.path}\\andreyvpn_system_proxy_recovery.log');
-        await logFile.writeAsString(
+        await RotatingFileLog.append(
+          logFile,
           '[${DateTime.now().toIso8601String()}] $message\r\n',
-          mode: FileMode.append,
-          flush: true,
+          detailed: true,
         );
       } catch (_) {
         // Diagnostics must never block application startup.

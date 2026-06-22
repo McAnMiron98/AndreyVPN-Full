@@ -48,6 +48,9 @@ internal sealed class UpdaterArgs
 
 internal sealed class UpdaterForm : Form
 {
+    private const long MaxLogBytes = 5L * 1024L * 1024L;
+    private const int LogBackupCount = 3;
+
     private readonly UpdaterArgs _args;
     private readonly Label _statusLabel;
     private readonly ProgressBar _progressBar;
@@ -281,11 +284,29 @@ internal sealed class UpdaterForm : Form
         try
         {
             Directory.CreateDirectory(_logDir);
+            RotateLogIfNeeded();
             File.AppendAllText(_logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}");
         }
         catch
         {
             // Ignore logging failures.
         }
+    }
+
+    private void RotateLogIfNeeded()
+    {
+        if (!File.Exists(_logPath) || new FileInfo(_logPath).Length < MaxLogBytes) return;
+
+        var oldest = $"{_logPath}.{LogBackupCount}";
+        if (File.Exists(oldest)) File.Delete(oldest);
+
+        for (var index = LogBackupCount - 1; index >= 1; index--)
+        {
+            var source = $"{_logPath}.{index}";
+            if (!File.Exists(source)) continue;
+            File.Move(source, $"{_logPath}.{index + 1}");
+        }
+
+        File.Move(_logPath, $"{_logPath}.1");
     }
 }

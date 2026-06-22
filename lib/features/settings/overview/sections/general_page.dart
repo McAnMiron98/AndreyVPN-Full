@@ -13,8 +13,22 @@ import 'package:andreyvpn/utils/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:humanizer/humanizer.dart';
 
-class GeneralPage extends HookConsumerWidget {
+class GeneralPage extends StatefulHookConsumerWidget {
   const GeneralPage({super.key});
+
+  @override
+  ConsumerState<GeneralPage> createState() => _GeneralPageState();
+}
+
+class _GeneralPageState extends ConsumerState<GeneralPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(autoStartNotifierProvider.notifier).updateStatus();
+    });
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ref.watch(translationsProvider).requireValue;

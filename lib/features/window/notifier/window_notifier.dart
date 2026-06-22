@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:andreyvpn/core/preferences/general_preferences.dart';
+import 'package:andreyvpn/core/preferences/preferences_provider.dart';
 import 'package:andreyvpn/core/startup/startup_launch.dart';
 import 'package:andreyvpn/features/connection/notifier/connection_notifier.dart';
 import 'package:andreyvpn/utils/utils.dart';
@@ -127,6 +128,7 @@ class WindowNotifier extends _$WindowNotifier with AppLogger {
         .catchError((e) {
           loggy.warning("error aborting connection on quit", e);
         });
+    await flushPortablePreferences();
     await trayManager.destroy();
     await windowManager.destroy();
   }

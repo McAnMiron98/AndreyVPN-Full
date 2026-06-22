@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:andreyvpn/core/directories/directories_provider.dart';
+import 'package:andreyvpn/core/logger/rotating_file_log.dart';
+import 'package:andreyvpn/core/preferences/general_preferences.dart';
 import 'package:andreyvpn/core/router/dialog/dialog_notifier.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -76,6 +78,16 @@ class LogsPage extends HookConsumerWidget {
             ),
           ),
           const Gap(8),
+          SwitchListTile.adaptive(
+            secondary: const Icon(Icons.tune_rounded),
+            title: const Text('Подробная диагностика'),
+            subtitle: const Text('Записывать расширенные технические логи. Обычно не требуется'),
+            value: ref.watch(Preferences.detailedDiagnostics),
+            onChanged: (value) async {
+              RotatingFileLog.detailedEnabled = value;
+              await ref.read(Preferences.detailedDiagnostics.notifier).update(value);
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.folder_open_rounded),
             title: const Text('Открыть папку логов'),

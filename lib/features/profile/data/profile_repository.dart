@@ -9,6 +9,7 @@ import 'package:andreyvpn/features/profile/data/profile_data_mapper.dart';
 import 'package:andreyvpn/features/profile/data/profile_data_source.dart';
 import 'package:andreyvpn/features/profile/data/profile_parser.dart';
 import 'package:andreyvpn/features/profile/data/profile_path_resolver.dart';
+import 'package:andreyvpn/features/profile/data/profile_server_exclusion_store.dart';
 import 'package:andreyvpn/features/profile/model/profile_entity.dart';
 import 'package:andreyvpn/features/profile/model/profile_failure.dart';
 import 'package:andreyvpn/features/profile/model/profile_sort_enum.dart';
@@ -34,6 +35,7 @@ abstract interface class ProfileRepository {
   TaskEither<ProfileFailure, Unit> validateConfig(String path, String tempPath, String? profileOverride, bool debug);
   TaskEither<ProfileFailure, String> generateConfig(String id);
   TaskEither<ProfileFailure, String> getRawConfig(String id);
+  TaskEither<ProfileFailure, Unit> excludeServers(ProfileEntity profile, Set<String> serverTags);
 }
 
 class ProfileRepositoryImpl with ExceptionHandler, InfraLogger implements ProfileRepository {
@@ -43,10 +45,12 @@ class ProfileRepositoryImpl with ExceptionHandler, InfraLogger implements Profil
     required HiddifyCoreService singbox,
     required ConfigOptionRepository configOptionRepository,
     required ProfileParser profileParser,
+    required ProfileServerExclusionStore serverExclusionStore,
   }) : _profileParser = profileParser,
        _configOptionRepo = configOptionRepository,
        _singbox = singbox,
        _profilePathResolver = profilePathResolver,
+       _serverExclusionStore = serverExclusionStore,
        _profileDataSource = profileDataSource;
 
   final ProfileDataSource _profileDataSource;
@@ -54,6 +58,7 @@ class ProfileRepositoryImpl with ExceptionHandler, InfraLogger implements Profil
   final HiddifyCoreService _singbox;
   final ConfigOptionRepository _configOptionRepo;
   final ProfileParser _profileParser;
+  final ProfileServerExclusionStore _serverExclusionStore;
 
   @override
   TaskEither<ProfileFailure, Unit> init() {
@@ -89,6 +94,7 @@ class ProfileRepositoryImpl with ExceptionHandler, InfraLogger implements Profil
     return TaskEither.tryCatch(() async {
       await _profileDataSource.deleteById(id, isActive);
       await _profilePathResolver.file(id).delete();
+      await _serverExclusionStore.clear(id);
       return unit;
     }, ProfileUnexpectedFailure.new);
   }
@@ -143,12 +149,14 @@ class ProfileRepositoryImpl with ExceptionHandler, InfraLogger implements Profil
                 .updateRemote(rp: profEntity, tempFilePath: tempFile.path, cancelToken: cancelToken)
                 .flatMap(
                   (profEntity) =>
-                      validateConfig(file.path, tempFile.path, profEntity.profileOverride.value, false).flatMap(
-                        (unit) => TaskEither.tryCatch(() async {
-                          await _profileDataSource.edit(id, profEntity);
-                          return unit;
-                        }, ProfileFailure.unexpected),
-                      ),
+                      validateConfig(file.path, tempFile.path, profEntity.profileOverride.value, false)
+                          .flatMap((_) => _applyStoredServerExclusions(id, profEntity.profileOverride.value))
+                          .flatMap(
+                            (unit) => TaskEither.tryCatch(() async {
+                              await _profileDataSource.edit(id, profEntity);
+                              return unit;
+                            }, ProfileFailure.unexpected),
+                          ),
                 );
           } else {
             // Add
@@ -162,12 +170,14 @@ class ProfileRepositoryImpl with ExceptionHandler, InfraLogger implements Profil
                 )
                 .flatMap(
                   (profEntity) =>
-                      validateConfig(file.path, tempFile.path, profEntity.profileOverride.value, false).flatMap(
-                        (unit) => TaskEither.tryCatch(() async {
-                          await _profileDataSource.insert(profEntity);
-                          return unit;
-                        }, ProfileFailure.unexpected),
-                      ),
+                      validateConfig(file.path, tempFile.path, profEntity.profileOverride.value, false)
+                          .flatMap((_) => _applyStoredServerExclusions(id, profEntity.profileOverride.value))
+                          .flatMap(
+                            (unit) => TaskEither.tryCatch(() async {
+                              await _profileDataSource.insert(profEntity);
+                              return unit;
+                            }, ProfileFailure.unexpected),
+                          ),
                 );
           }
         } finally {
@@ -260,5 +270,52 @@ class ProfileRepositoryImpl with ExceptionHandler, InfraLogger implements Profil
     return TaskEither.fromEither(
       Either.tryCatch(() => _profilePathResolver.file(id), ProfileFailure.unexpected),
     ).flatMap((configFile) => TaskEither.tryCatch(() => configFile.readAsString(), ProfileFailure.unexpected));
+  }
+
+  @override
+  TaskEither<ProfileFailure, Unit> excludeServers(ProfileEntity profile, Set<String> serverTags) {
+    if (serverTags.isEmpty) return TaskEither.of(unit);
+    final exclusions = {..._serverExclusionStore.read(profile.id), ...serverTags};
+    return _rewriteValidatedConfig(profile.id, profile.profileOverride, exclusions, requireRemoval: true).flatMap(
+      (_) => TaskEither.tryCatch(() async {
+        await _serverExclusionStore.write(profile.id, exclusions);
+        return unit;
+      }, ProfileFailure.unexpected),
+    );
+  }
+
+  TaskEither<ProfileFailure, Unit> _applyStoredServerExclusions(String profileId, String? profileOverride) {
+    final exclusions = _serverExclusionStore.read(profileId);
+    if (exclusions.isEmpty) return TaskEither.of(unit);
+    return _rewriteValidatedConfig(profileId, profileOverride, exclusions);
+  }
+
+  TaskEither<ProfileFailure, Unit> _rewriteValidatedConfig(
+    String profileId,
+    String? profileOverride,
+    Set<String> exclusions, {
+    bool requireRemoval = false,
+  }) {
+    return TaskEither.tryCatch(() async {
+      final file = _profilePathResolver.file(profileId);
+      final result = ProfileServerConfigEditor.removeServers(await file.readAsString(), exclusions);
+      if (requireRemoval && result.removedTags.isEmpty) {
+        throw StateError('Selected servers were not found in the saved subscription config');
+      }
+      if (result.removedTags.isEmpty) return unit;
+
+      final tempFile = _profilePathResolver.tempFile('$profileId.exclusions');
+      try {
+        await tempFile.writeAsString(result.content, flush: true);
+        return (await validateConfig(file.path, tempFile.path, profileOverride, false).run()).match(
+          (failure) => throw failure,
+          (_) => unit,
+        );
+      } finally {
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
+      }
+    }, (error, stackTrace) => error is ProfileFailure ? error : ProfileFailure.unexpected(error, stackTrace));
   }
 }

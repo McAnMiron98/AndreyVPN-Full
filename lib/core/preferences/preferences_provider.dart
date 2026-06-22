@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:andreyvpn/core/directories/directories_provider.dart';
+import 'package:andreyvpn/core/logger/rotating_file_log.dart';
 import 'package:andreyvpn/utils/platform_utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:loggy/loggy.dart';
@@ -13,6 +14,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
 
 part 'preferences_provider.g.dart';
+
+_PortableJsonSharedPreferencesStore? _portableStore;
+
+Future<void> flushPortablePreferences() async {
+  await _portableStore?.flushPending();
+}
 
 @Riverpod(keepAlive: true)
 Future<SharedPreferences> sharedPreferences(Ref ref) async {
@@ -25,10 +32,6 @@ Future<SharedPreferences> sharedPreferences(Ref ref) async {
       await _installPortablePreferencesStore();
     }
     sharedPreferences = await SharedPreferences.getInstance();
-    if (PlatformUtils.isWindows) {
-      await _mirrorPreferencesToPortable(sharedPreferences);
-      unawaited(_delayedPortablePreferencesSync(sharedPreferences));
-    }
   } catch (e) {
     logger.error("error initializing preferences", e);
     if (!Platform.isWindows && !Platform.isLinux) {
@@ -49,10 +52,6 @@ Future<SharedPreferences> sharedPreferences(Ref ref) async {
       await _installPortablePreferencesStore();
     }
     sharedPreferences = await SharedPreferences.getInstance();
-  }
-  if (PlatformUtils.isWindows) {
-    await _mirrorPreferencesToPortable(sharedPreferences);
-    unawaited(_delayedPortablePreferencesSync(sharedPreferences));
   }
   return sharedPreferences;
 }
@@ -75,7 +74,9 @@ Future<void> _installPortablePreferencesStore() async {
 
     await _normalizePortablePreferencesFile(portableFile, legacyFile);
 
-    SharedPreferencesStorePlatform.instance = _PortableJsonSharedPreferencesStore(portableFile);
+    final store = _PortableJsonSharedPreferencesStore(portableFile);
+    _portableStore = store;
+    SharedPreferencesStorePlatform.instance = store;
     await _writePreferencesDiagnostic('portable preferences store installed: ${portableFile.path}');
   } catch (e) {
     await _writePreferencesDiagnostic('portable store install error: $e');
@@ -129,6 +130,7 @@ Future<void> _normalizePortablePreferencesFile(File portableFile, File? legacyFi
     }
 
     await _writeJsonMap(portableFile, normalized);
+    RotatingFileLog.detailedEnabled = normalized['flutter.detailed_diagnostics'] == true;
     await _writePreferencesDiagnostic(
       'portable preferences normalized from $source; keys=${normalized.keys.toList()}; flutter.intro_completed=${normalized['flutter.intro_completed']}; flutter.enable_analytics=${normalized['flutter.enable_analytics']}',
     );
@@ -152,6 +154,7 @@ Map<String, Object?> _normalizePreferenceKeys(Map<String, Object?> values) {
   normalized.putIfAbsent('flutter.locale', () => 'ru');
   normalized.putIfAbsent('flutter.enable_analytics', () => false);
   normalized.putIfAbsent('flutter.intro_completed', () => true);
+  normalized.putIfAbsent('flutter.detailed_diagnostics', () => false);
 
   return normalized;
 }
@@ -167,49 +170,13 @@ Future<void> _writePreferencesDiagnostic(String message) async {
     if (!PlatformUtils.isWindows) return;
     final logsDir = await AppDirectories.getLogsDirectory();
     final file = File(p.join(logsDir.path, 'andreyvpn_preferences_diagnostic.log'));
-    await file.writeAsString(
+    await RotatingFileLog.append(
+      file,
       '[${DateTime.now().toIso8601String()}] $message\n',
-      mode: FileMode.append,
-      flush: true,
+      detailed: true,
     );
   } catch (_) {
     // Preference diagnostics must never block startup.
-  }
-}
-
-Future<void> _delayedPortablePreferencesSync(SharedPreferences preferences) async {
-  for (final delay in <Duration>[
-    const Duration(milliseconds: 500),
-    const Duration(seconds: 2),
-    const Duration(seconds: 5),
-  ]) {
-    await Future<void>.delayed(delay);
-    await _mirrorPreferencesToPortable(preferences);
-  }
-}
-
-Future<void> _mirrorPreferencesToPortable(SharedPreferences preferences) async {
-  try {
-    if (!PlatformUtils.isWindows) return;
-    final portableDir = AppDirectories.getPortableDirectory();
-    if (!await portableDir.exists()) {
-      await portableDir.create(recursive: true);
-    }
-
-    final values = <String, Object?>{};
-    for (final key in preferences.getKeys()) {
-      final rawKey = key.startsWith('flutter.') ? key : 'flutter.$key';
-      values[rawKey] = preferences.get(key);
-    }
-
-    final normalized = _normalizePreferenceKeys(values);
-    final file = File(p.join(portableDir.path, 'shared_preferences.json'));
-    await _writeJsonMap(file, normalized);
-    await _writePreferencesDiagnostic(
-      'mirrored preferences to portable; flutter.intro_completed=${normalized['flutter.intro_completed']}; flutter.enable_analytics=${normalized['flutter.enable_analytics']}; keys=${normalized.keys.length}',
-    );
-  } catch (e) {
-    await _writePreferencesDiagnostic('mirror preferences error: $e');
   }
 }
 
@@ -243,8 +210,15 @@ class _PortableJsonSharedPreferencesStore extends SharedPreferencesStorePlatform
   _PortableJsonSharedPreferencesStore(this.file);
 
   final File file;
+  Map<String, Object>? _cachedValues;
+  Timer? _flushTimer;
+  Future<void> _writeChain = Future.value();
+  int _revision = 0;
 
   Future<Map<String, Object>> _readAllRaw() async {
+    final cached = _cachedValues;
+    if (cached != null) return cached;
+
     final values = _normalizePreferenceKeys(await _readJsonMap(file));
     final result = <String, Object>{};
     for (final entry in values.entries) {
@@ -255,11 +229,38 @@ class _PortableJsonSharedPreferencesStore extends SharedPreferencesStorePlatform
         result[entry.key] = value.map((e) => e.toString()).toList();
       }
     }
-    return result;
+    return _cachedValues = result;
   }
 
-  Future<void> _writeAllRaw(Map<String, Object?> values) async {
-    await _writeJsonMap(file, _normalizePreferenceKeys(values));
+  void _scheduleWrite() {
+    _revision++;
+    _flushTimer?.cancel();
+    _flushTimer = Timer(const Duration(milliseconds: 300), () {
+      unawaited(_flush());
+    });
+  }
+
+  Future<void> _flush() async {
+    final values = Map<String, Object?>.from(await _readAllRaw());
+    final revision = _revision;
+    _writeChain = _writeChain.catchError((_) {}).then((_) async {
+      final temporaryFile = File('${file.path}.tmp');
+      await _writeJsonMap(temporaryFile, _normalizePreferenceKeys(values));
+      if (await file.exists()) {
+        await file.delete();
+      }
+      await temporaryFile.rename(file.path);
+    });
+    await _writeChain;
+    if (revision != _revision) {
+      _scheduleWrite();
+    }
+  }
+
+  Future<void> flushPending() async {
+    _flushTimer?.cancel();
+    _flushTimer = null;
+    await _flush();
   }
 
   @override
@@ -275,7 +276,7 @@ class _PortableJsonSharedPreferencesStore extends SharedPreferencesStorePlatform
   Future<bool> setValue(String valueType, String key, Object value) async {
     final values = await _readAllRaw();
     values[key] = value;
-    await _writeAllRaw(values);
+    _scheduleWrite();
     await _writePreferencesDiagnostic('portable store setValue; key=$key; valueType=$valueType; value=$value');
     return true;
   }
@@ -284,14 +285,15 @@ class _PortableJsonSharedPreferencesStore extends SharedPreferencesStorePlatform
   Future<bool> remove(String key) async {
     final values = await _readAllRaw();
     values.remove(key);
-    await _writeAllRaw(values);
+    _scheduleWrite();
     await _writePreferencesDiagnostic('portable store remove; key=$key');
     return true;
   }
 
   @override
   Future<bool> clear() async {
-    await _writeAllRaw(<String, Object?>{});
+    _cachedValues = <String, Object>{};
+    _scheduleWrite();
     await _writePreferencesDiagnostic('portable store clear');
     return true;
   }

@@ -24,6 +24,7 @@ class _WindowWrapperState extends ConsumerState<WindowWrapper> with WindowListen
   late AlertDialog closeDialog;
 
   bool isWindowClosingDialogOpened = false;
+  Timer? _windowStateSaveTimer;
 
   @override
   Widget build(BuildContext context) {
@@ -45,8 +46,16 @@ class _WindowWrapperState extends ConsumerState<WindowWrapper> with WindowListen
 
   @override
   void dispose() {
+    _windowStateSaveTimer?.cancel();
     windowManager.removeListener(this);
     super.dispose();
+  }
+
+  void _scheduleWindowStateSave() {
+    _windowStateSaveTimer?.cancel();
+    _windowStateSaveTimer = Timer(const Duration(milliseconds: 400), () {
+      ref.read(windowNotifierProvider.notifier).saveWindowState();
+    });
   }
 
   @override
@@ -73,21 +82,23 @@ class _WindowWrapperState extends ConsumerState<WindowWrapper> with WindowListen
 
   @override
   Future<void> onWindowResized() async {
-    await ref.read(windowNotifierProvider.notifier).saveWindowState();
+    _scheduleWindowStateSave();
   }
 
   @override
   Future<void> onWindowMoved() async {
-    await ref.read(windowNotifierProvider.notifier).saveWindowState();
+    _scheduleWindowStateSave();
   }
 
   @override
   Future<void> onWindowMaximize() async {
+    _windowStateSaveTimer?.cancel();
     await ref.read(windowNotifierProvider.notifier).saveWindowState();
   }
 
   @override
   Future<void> onWindowUnmaximize() async {
+    _windowStateSaveTimer?.cancel();
     await ref.read(windowNotifierProvider.notifier).saveWindowState();
   }
 

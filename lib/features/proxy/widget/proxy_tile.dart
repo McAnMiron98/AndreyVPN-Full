@@ -8,11 +8,22 @@ import 'package:andreyvpn/utils/platform_utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class ProxyTile extends HookConsumerWidget with PresLogger {
-  const ProxyTile(this.proxy, {super.key, required this.selected, required this.onTap});
+  const ProxyTile(
+    this.proxy, {
+    super.key,
+    required this.selected,
+    required this.onTap,
+    this.editing = false,
+    this.removalSelected = false,
+    this.removalEnabled = true,
+  });
 
   final OutboundInfo proxy;
   final bool selected;
   final GestureTapCallback? onTap;
+  final bool editing;
+  final bool removalSelected;
+  final bool removalEnabled;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,7 +36,11 @@ class ProxyTile extends HookConsumerWidget with PresLogger {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      color: selected ? theme.colorScheme.primaryContainer : theme.colorScheme.surface,
+      color: removalSelected
+          ? theme.colorScheme.errorContainer
+          : selected
+          ? theme.colorScheme.primaryContainer
+          : theme.colorScheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -72,6 +87,11 @@ class ProxyTile extends HookConsumerWidget with PresLogger {
                   ],
                 ),
               ),
+              if (editing)
+                Checkbox(
+                  value: removalSelected,
+                  onChanged: removalEnabled ? (_) => onTap?.call() : null,
+                ),
             ],
           ),
         ),

@@ -5,6 +5,8 @@ import 'package:andreyvpn/features/profile/data/profile_data_source.dart';
 import 'package:andreyvpn/features/profile/data/profile_parser.dart';
 import 'package:andreyvpn/features/profile/data/profile_path_resolver.dart';
 import 'package:andreyvpn/features/profile/data/profile_repository.dart';
+import 'package:andreyvpn/features/profile/data/profile_server_exclusion_store.dart';
+import 'package:andreyvpn/core/preferences/preferences_provider.dart';
 import 'package:andreyvpn/features/settings/data/config_option_data_providers.dart';
 import 'package:andreyvpn/hiddifycore/hiddify_core_service_provider.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -20,6 +22,9 @@ Future<ProfileRepository> profileRepository(Ref ref) async {
     singbox: ref.watch(hiddifyCoreServiceProvider),
     configOptionRepository: ref.watch(configOptionRepositoryProvider),
     profileParser: ref.watch(profileParserProvider),
+    serverExclusionStore: ProfileServerExclusionStore(
+      ref.watch(sharedPreferencesProvider).requireValue,
+    ),
   );
   await repo.init().getOrElse((l) => throw l).run();
   return repo;

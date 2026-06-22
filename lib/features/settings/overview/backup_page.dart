@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:andreyvpn/core/directories/directories_provider.dart';
+import 'package:andreyvpn/core/logger/rotating_file_log.dart';
+import 'package:andreyvpn/core/preferences/preferences_provider.dart';
 import 'package:andreyvpn/core/router/dialog/dialog_notifier.dart';
 import 'package:andreyvpn/features/settings/notifier/full_backup_notifier.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -29,8 +32,13 @@ class BackupPage extends HookConsumerWidget {
   void _appendRestartLog(String message) {
     try {
       final logFile = _restartDiagnosticFile();
-      logFile.parent.createSync(recursive: true);
-      logFile.writeAsStringSync('[${DateTime.now().toIso8601String()}] $message\n', mode: FileMode.append, flush: true);
+      unawaited(
+        RotatingFileLog.append(
+          logFile,
+          '[${DateTime.now().toIso8601String()}] $message\n',
+          detailed: true,
+        ).catchError((_) {}),
+      );
     } catch (_) {
       // Restart logging must never block the restart flow.
     }
@@ -102,6 +110,7 @@ class BackupPage extends HookConsumerWidget {
     }
 
     await Future<void>.delayed(const Duration(milliseconds: 300));
+    await flushPortablePreferences();
     _appendRestartLog('exiting current process');
     exit(0);
   }

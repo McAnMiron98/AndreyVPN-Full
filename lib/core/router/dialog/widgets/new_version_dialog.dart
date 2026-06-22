@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:andreyvpn/core/directories/directories_provider.dart';
+import 'package:andreyvpn/core/logger/rotating_file_log.dart';
 import 'package:andreyvpn/core/localization/translations.dart';
 import 'package:andreyvpn/features/app_update/model/remote_version_entity.dart';
 import 'package:andreyvpn/features/app_update/notifier/app_update_notifier.dart';
@@ -53,7 +54,7 @@ class NewVersionDialog extends HookConsumerWidget with PresLogger {
 
     Future<void> launcherLog(String message) async {
       final now = DateTime.now().toIso8601String();
-      await File(launcherLogPath).writeAsString('[$now] $message\r\n', mode: FileMode.append, flush: true);
+      await RotatingFileLog.append(File(launcherLogPath), '[$now] $message\r\n', detailed: true);
     }
 
     await launcherLog('Preparing external updater launch');
