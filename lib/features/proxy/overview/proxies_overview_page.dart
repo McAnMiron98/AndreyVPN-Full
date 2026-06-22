@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:andreyvpn/core/localization/translations.dart';
 import 'package:andreyvpn/core/model/failures.dart';
@@ -133,7 +134,7 @@ class ProxiesOverviewPage extends HookConsumerWidget with PresLogger {
                         onTap: editing.value
                             ? removalEnabled
                                   ? () {
-                                      final next = {...selectedForRemoval.value};
+                                      final next = <String>{...selectedForRemoval.value};
                                       if (next.contains(proxy.tag)) {
                                         next.remove(proxy.tag);
                                       } else {

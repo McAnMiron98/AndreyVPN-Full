@@ -30,7 +30,7 @@ class _GeneralPageState extends ConsumerState<GeneralPage> {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final t = ref.watch(translationsProvider).requireValue;
 
     return Scaffold(

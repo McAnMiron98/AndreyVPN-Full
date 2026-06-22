@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.14)
 # Opt into the modern policy when available to keep GitHub Actions logs clean.
 if(POLICY CMP0194)
   cmake_policy(SET CMP0194 NEW)
+  set(CMAKE_POLICY_DEFAULT_CMP0194 NEW)
 endif()
 
 project(andreyvpn LANGUAGES CXX)
